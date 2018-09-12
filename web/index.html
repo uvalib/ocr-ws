@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+      <script>
+      $(function() {
+         // every 5 seconds, poll the status API for the PID
+         var token="{{ .token }}";
+         var pid="{{ .pid }}";
+         var baseUrl = window.location.href.split("?")[0];
+         var statusUrl = baseUrl+"/status";
+         var downloadUrl = baseUrl+"/download";
+         if ( token !=  pid ) {
+            statusUrl += "?token="+token;
+            downloadUrl += "?token="+token;
+         }
+         (function ocrStatus() {
+            console.log("Check status...");
+            $.ajax({
+               url: statusUrl,
+               complete: function(jqXHR, textStatus) {
+                  if (textStatus == "success") {
+                     if (jqXHR.responseText == "READY") {
+                        console.log("READY");
+                        $("#message").text("OCR Generation complete");
+                        window.location.href = downloadUrl;
+                     } else if (jqXHR.responseText == "FAILED") {
+                        console.log("FAIL");
+                        $("#message").text("OCR generation failed: " + jqXHR.responseText);
+                     } else {
+                        console.log("PROCESSING");
+                        if (/^\d+%$/.test(jqXHR.responseText)) {
+                          $("#message").text("Generating OCR for {{ .pid }} (" + jqXHR.responseText + ")...");
+                        }
+                        setTimeout(ocrStatus,5000);
+                     }
+                  } else {
+                     console.log("FAIL");
+                     $("#message").text("OCR generation failed: " + jqXHR.responseText);
+                  }
+               }
+            });
+         })();
+      });
+      </script>
+   </head>
+   <body>
+      <p id="message">Generating OCR for {{ .pid }}...</p>
+   </body>
+</html>
