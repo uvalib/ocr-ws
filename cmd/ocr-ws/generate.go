@@ -264,8 +264,7 @@ func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string,
 	}
 
 	// run helper script to generate OCR from the given tif
-	// FIXME:
-	cmd := "../../scripts/generateOCR.sh"
+	cmd := fmt.Sprintf("%s/generateOCR.sh", config.scriptDir.value)
 	args := []string{srcFile, outPath, txtFile}
 
 	logger.Printf("Executing command: %s with arguments: %v", cmd, args)
@@ -343,10 +342,13 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 
 	ocrFile := fmt.Sprintf("%s/%s/%s.txt", config.storageDir.value, workDir, pid)
 	logger.Printf("Merging page OCRs into single text file: [%s]", ocrFile)
-	// FIXME:
-	cmd := "../../scripts/mergeOCR.sh"
+
+	// run helper program to merge OCR text files
+	cmd := fmt.Sprintf("%s/mergeOCR.sh", config.scriptDir.value)
 	args := []string{ocrFile}
 	args = append(args, txtFiles...)
+
+	logger.Printf("Executing command: %s", cmd)
 
 	convErr := exec.Command(cmd, args...).Run()
 	if convErr != nil {

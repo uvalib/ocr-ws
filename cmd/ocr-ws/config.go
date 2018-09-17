@@ -33,6 +33,7 @@ type configData struct {
 	archiveDir          configStringItem
 	storageDir          configStringItem
 	templateDir         configStringItem
+	scriptDir			configStringItem
 	allowUnpublished    configBoolItem
 	iiifUrlTemplate     configStringItem
 	useHttps            configBoolItem
@@ -53,6 +54,7 @@ func init() {
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_ARCHIVE_DIR", desc: "archival tif mount directory"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.templateDir = configStringItem{value: "", configItem: configItem{flag: "w", env: "OCRWS_WEB_TEMPLATE_DIR", desc: "web template directory"}}
+	config.scriptDir = configStringItem{value: "", configItem: configItem{flag: "r", env: "OCRWS_SCRIPT_DIR", desc: "helper script directory"}}
 	config.allowUnpublished = configBoolItem{value: false, configItem: configItem{flag: "a", env: "OCRWS_ALLOW_UNPUBLISHED", desc: "allow unpublished"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
@@ -97,6 +99,7 @@ func getConfigValues() {
 	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.templateDir)
+	flagStringVar(&config.scriptDir)
 	flagBoolVar(&config.allowUnpublished)
 	flagStringVar(&config.iiifUrlTemplate)
 	flagBoolVar(&config.useHttps)
@@ -117,6 +120,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.templateDir) && configOK
+	configOK = ensureConfigStringSet(&config.scriptDir) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	if config.useHttps.value == true {
 		configOK = ensureConfigStringSet(&config.sslCrt) && configOK
@@ -138,6 +142,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] archiveDir          = [%s]", config.archiveDir.value)
 	logger.Printf("[CONFIG] storageDir          = [%s]", config.storageDir.value)
 	logger.Printf("[CONFIG] templateDir         = [%s]", config.templateDir.value)
+	logger.Printf("[CONFIG] scriptDir           = [%s]", config.scriptDir.value)
 	logger.Printf("[CONFIG] allowUnpublished    = [%s]", strconv.FormatBool(config.allowUnpublished.value))
 	logger.Printf("[CONFIG] iiifUrlTemplate     = [%s]", config.iiifUrlTemplate.value)
 	logger.Printf("[CONFIG] useHttps            = [%s]", strconv.FormatBool(config.useHttps.value))
