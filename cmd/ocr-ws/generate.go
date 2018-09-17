@@ -335,6 +335,7 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 		if _, err := ef.WriteString("No text files to process"); err != nil {
 			logger.Printf("Unable to write error file : %s", err.Error())
 		}
+		updateProgress(outPath, steps, steps)
 		return
 	}
 
@@ -342,10 +343,9 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 
 	ocrFile := fmt.Sprintf("%s/%s/%s.txt", config.storageDir.value, workDir, pid)
 	logger.Printf("Merging page OCRs into single text file: [%s]", ocrFile)
-	cmd := "sed"
-	args := []string{}
-	args = append(args, "-n")
-	args = append(args, "w"+ocrFile)
+	// FIXME:
+	cmd := "../../scripts/mergeOCR.sh"
+	args := []string{ocrFile}
 	args = append(args, txtFiles...)
 
 	convErr := exec.Command(cmd, args...).Run()
@@ -360,7 +360,7 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 		logger.Printf("Generated txt : %s", ocrFile)
 		ef, _ := os.OpenFile(fmt.Sprintf("%s/done.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
 		defer ef.Close()
-		if _, err := ef.WriteString(ocrFile); err != nil {
+		if _, err := ef.WriteString("success"); err != nil {
 			logger.Printf("Unable to write done file : %s", err.Error())
 		}
 	}
