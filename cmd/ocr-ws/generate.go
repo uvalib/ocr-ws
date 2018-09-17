@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -54,7 +53,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		workDir = fmt.Sprintf("%s/%d", pid, unitID)
 	}
 
-	// pull params for email notification
+	// pull param for email notification
 	ocrEmail := r.URL.Query().Get("email")
 
 	// pull params for select page OCR generation; pages and token
@@ -71,23 +70,13 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		logger.Printf("Request for partial OCR including pages: %s", ocrPages)
 	}
 
-	// pull query string params; embed and unit
-	embedStr := r.URL.Query().Get("embed")
-	embed := true
-	if len(embedStr) == 0 || embedStr == "0" {
-		embed = false
-	}
-
 	// See if destination already extsts...
 	ocrDestPath := fmt.Sprintf("%s/%s", config.storageDir.value, workDir)
 	if _, err := os.Stat(ocrDestPath); err == nil {
 		// path already exists; don't start another request, just treat
 		// this one is if it was successful and render the ajax page
-		if embed {
-			fmt.Fprintf(w, "ok")
-		} else {
-			renderAjaxPage(workDir, pid, w)
-		}
+		logger.Printf("Request already in progress or completed")
+		renderAjaxPage(workDir, pid, w)
 		return
 	}
 
@@ -117,11 +106,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	go generateOcr(workDir, pid, ocrEmail, pages)
 
 	// Render a simple ok message or kick an ajax polling loop
-	if embed {
-		fmt.Fprintf(w, "ok")
-	} else {
-		renderAjaxPage(workDir, pid, w)
-	}
+	renderAjaxPage(workDir, pid, w)
 }
 
 func getMasterFilePages(pid string, w http.ResponseWriter) (pages []pageInfo, err error) {
@@ -133,7 +118,7 @@ func getMasterFilePages(pid string, w http.ResponseWriter) (pages []pageInfo, er
 		logger.Printf("Request failed: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Unable to OCR: %s", err.Error())
-		return
+		return nil, err
 	}
 
 	// if this is a clone, grab the info for the original
@@ -144,13 +129,13 @@ func getMasterFilePages(pid string, w http.ResponseWriter) (pages []pageInfo, er
 			logger.Printf("Request failed: %s", err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "Unable to OCR: %s", err.Error())
-			return
+			return nil, err
 		}
 	}
 
 	pages = append(pages, pg)
 
-	return
+	return pages, nil
 }
 
 // NOTE: when called from Tracksys, the unitID will be set. Honor this and generate OCR
@@ -171,7 +156,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 		logger.Printf("Request failed: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Unable to OCR: %s", err.Error())
-		return
+		return nil, err
 	}
 
 	// Must have availability set
@@ -179,7 +164,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 		logger.Printf("%s not found", pid)
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "%s not found", pid)
-		return
+		return nil, errors.New("PID does not have availability set")
 	}
 
 	// Get data for all master files from units associated with metadata / unit
@@ -210,7 +195,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 			}
 		}
 
-		// Filter to only pids requested?
+		// Filter to only pages requested?
 		if len(ocrPages) > 0 {
 			idStr := strings.Split(ocrPages, ",")
 			for _, val := range idStr {
@@ -229,7 +214,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 			logger.Printf("Request failed: %s", queryErr.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, "Unable to OCR: %s", queryErr.Error())
-			return
+			return nil, err
 		}
 
 		for rows.Next() {
@@ -244,7 +229,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 			pages = append(pages, pg)
 		}
 	}
-	return
+	return pages, nil
 }
 
 /*
@@ -264,55 +249,37 @@ func renderAjaxPage(workDir string, pid string, w http.ResponseWriter) {
 	}
 }
 
-func downloadJpgFromIiif(outPath string, pid string) (jpgFileName string, err error) {
-	url := config.iiifUrlTemplate.value
-	url = strings.Replace(url, "$PID", pid, 1)
+func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string, err error) {
+	txtFile := fmt.Sprintf("%s.txt", pid)
+	txtFileFull = fmt.Sprintf("%s/%s", outPath, txtFile)
 
-	logger.Printf("Downloading JPG from: %s", url)
-	response, err := http.Get(url)
-	if err != nil || response.StatusCode != 200 {
-		err = errors.New("not found")
-		return
-	}
-	defer response.Body.Close()
-
-	jpgFileName = fmt.Sprintf("%s/%s.jpg", outPath, pid)
-	destFile, err := os.Create(jpgFileName)
-	if err != nil {
-		return
-	}
-	defer destFile.Close()
-
-	s, err := io.Copy(destFile, response.Body)
-	if err != nil {
-		return
-	}
-
-	logger.Printf(fmt.Sprintf("Successful download size: %d", s))
-	return
-}
-
-func jpgFromTif(outPath string, pid string, tifFile string) (jpgFileName string, err error) {
-	jpgFileName = fmt.Sprintf("%s/%s.jpg", outPath, pid)
 	bits := strings.Split(tifFile, "_")
 	srcFile := fmt.Sprintf("%s/%s/%s", config.archiveDir.value, bits[0], tifFile)
-	logger.Printf("Using archived file as source: %s", srcFile)
+	logger.Printf("Using archived file as source: [%s]", srcFile)
+
 	_, err = os.Stat(srcFile)
 	if err != nil {
 		logger.Printf("ERROR %s", err.Error())
-		return
+		return txtFileFull, err
 	}
 
-	// run imagemagick to create scaled down jpg
-	cmd := "convert"
-	args := []string{fmt.Sprintf("%s[0]", srcFile), "-resize", "1024", jpgFileName}
-	convErr := exec.Command(cmd, args...).Run()
-	if convErr != nil {
-		logger.Printf("Unable to generate JPG for %s", tifFile)
+	// run helper script to generate OCR from the given tif
+	// FIXME:
+	cmd := "../../scripts/generateOCR.sh"
+	args := []string{srcFile, outPath, txtFile}
+
+	logger.Printf("Executing command: %s with arguments: %v", cmd, args)
+
+	genErr := exec.Command(cmd, args...).Run()
+
+	if genErr != nil {
+		logger.Printf("Unable to generate OCR from tif: [%s]", tifFile)
+		return txtFileFull, genErr
 	} else {
-		logger.Printf("Generated %s", jpgFileName)
+		logger.Printf("Generated %s", txtFile)
 	}
-	return
+
+	return txtFileFull, nil
 }
 
 func updateProgress(outPath string, step int, steps int) {
@@ -331,7 +298,7 @@ func updateProgress(outPath string, step int, steps int) {
 }
 
 /**
- * use jp2 or archived tif files to generate OCR for a PID
+ * use archived tif files to generate OCR for a PID
  */
 func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) {
 	// Make sure the work directory exists
@@ -339,102 +306,47 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 	os.MkdirAll(outPath, 0777)
 
 	// initialize progress reporting:
-	// steps include each page download, each image OCR, plus a final conversion step
+	// steps include each page processed, plus a final conversion step
 
-	var steps = 2 * len(pages) + 1
+	var steps = len(pages) + 1
 	var step = 0
 
-	// iterate over page info and build a list of paths to
-	// the image for that page. Older pages may only be stored on lib_content44
-	// and newer pages will have a jp2k file avialble on the iiif server
-	var jpgFiles []string
-	for _, val := range pages {
-		logger.Printf("Get reduced size jpg for %s %s", val.PID, val.Filename)
+	// iterate over page info and build a list of text files containing OCR data
+	var txtFiles []string
+	for _, page := range pages {
+		logger.Printf("Processing PID %s with filename [%s]", page.PID, page.Filename)
 
 		step++
 		updateProgress(outPath, step, steps)
 
-		// First, try to get a JPG file from the IIIF server mount
-		jpgFile, jpgErr := downloadJpgFromIiif(outPath, val.PID)
-		if jpgErr != nil {
-			// not found. work from the archival tif file
-			logger.Printf("No JPG found on IIIF server; using archival tif...")
-			jpgFile, jpgErr = jpgFromTif(outPath, val.PID, val.Filename)
-			if jpgErr != nil {
-				logger.Printf("Unable to find source image for masterFile %s. Skipping.", val.PID)
-				// account for one fewer ocr to perform
-				steps--
-				continue
-			}
+		txtFile, txtErr := txtFromTif(outPath, page.PID, page.Filename)
+		if txtErr != nil {
+			logger.Printf("Unable to generate OCR from PID %s; skipping.", page.PID)
+			continue
 		}
-		jpgFiles = append(jpgFiles, jpgFile)
+
+		txtFiles = append(txtFiles, txtFile)
 	}
 
-	// check if we have any jpg files to process
-
-	if len(jpgFiles) == 0 {
-		logger.Printf("No jpg files to process")
+	if len(txtFiles) == 0 {
+		logger.Printf("No text files to process")
 		ef, _ := os.OpenFile(fmt.Sprintf("%s/fail.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
 		defer ef.Close()
-		if _, err := ef.WriteString("No jpg files to process"); err != nil {
+		if _, err := ef.WriteString("No text files to process"); err != nil {
 			logger.Printf("Unable to write error file : %s", err.Error())
 		}
 		return
 	}
 
-	// Perform OCR on each jpg
+	// Now merge all of the text files into 1 text file
 
-	var ocrFiles []string
-	for _, jpgFile := range jpgFiles {
-		step++
-		updateProgress(outPath, step, steps)
-
-		ocrFile := fmt.Sprintf("%s/%s/%s.ocr", config.storageDir.value, workDir, pid)
-		logger.Printf("Generating page OCR from file: %s into file: %s", jpgFile, ocrFile)
-		cmd := "tesseract"
-		args := []string{}
-		args = append(args, "-l")
-		args = append(args, "eng")
-		args = append(args, jpgFile)
-		args = append(args, ocrFile)
-		ocrErr := exec.Command(cmd, args...).Run()
-		if ocrErr != nil {
-			logger.Printf("Unable to generate OCR : %s", ocrErr.Error())
-		} else {
-			logger.Printf("Generated OCR : %s", ocrFile)
-			// tesseract appends .txt to whatever output file name we specify
-			ocrFiles = append(ocrFiles, ocrFile + ".txt")
-		}
-	}
-
-	// check if we have any ocr files to process
-
-	if len(ocrFiles) == 0 {
-		logger.Printf("No ocr files to process")
-		ef, _ := os.OpenFile(fmt.Sprintf("%s/fail.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
-		defer ef.Close()
-		if _, err := ef.WriteString("No ocr files to process"); err != nil {
-			logger.Printf("Unable to write error file : %s", err.Error())
-		}
-		return
-	}
-
-	// Now merge all of the files into 1 text file
-
-	txtFile := fmt.Sprintf("%s/%s/%s.txt", config.storageDir.value, workDir, pid)
-	logger.Printf("Merging page OCRs into single txt %s", txtFile)
-/*
-	cmd := "cat"
-	args := []string{}
-	args = append(args, ocrFiles...)
-	args = append(args, ">")
-	args = append(args, txtFile)
-*/
+	ocrFile := fmt.Sprintf("%s/%s/%s.txt", config.storageDir.value, workDir, pid)
+	logger.Printf("Merging page OCRs into single text file: [%s]", ocrFile)
 	cmd := "sed"
 	args := []string{}
 	args = append(args, "-n")
-	args = append(args, "w" + txtFile)
-	args = append(args, ocrFiles...)
+	args = append(args, "w"+ocrFile)
+	args = append(args, txtFiles...)
 
 	convErr := exec.Command(cmd, args...).Run()
 	if convErr != nil {
@@ -445,10 +357,10 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 			logger.Printf("Unable to write error file : %s", err.Error())
 		}
 	} else {
-		logger.Printf("Generated txt : %s", txtFile)
+		logger.Printf("Generated txt : %s", ocrFile)
 		ef, _ := os.OpenFile(fmt.Sprintf("%s/done.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
 		defer ef.Close()
-		if _, err := ef.WriteString(txtFile); err != nil {
+		if _, err := ef.WriteString(ocrFile); err != nil {
 			logger.Printf("Unable to write done file : %s", err.Error())
 		}
 	}
@@ -456,6 +368,6 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 	step++
 	updateProgress(outPath, step, steps)
 
-	// Cleanup intermediate jpgFiles
-//	exec.Command("rm", jpgFiles...).Run()
+	// Cleanup intermediate txtFiles
+	//	exec.Command("rm", txtFiles...).Run()
 }
