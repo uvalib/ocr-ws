@@ -311,9 +311,7 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 
 	start := time.Now()
 
-	// use iteration instead of range to allow pageInfo struct to be modified inside function
-	//	for _, page := range pages {
-	for i := 0; i < len(pages); i++ {
+	for i, _ := range pages {
 		wg.Add(1)
 		go generateOcrPage(outPath, &pages[i], &wg)
 	}
