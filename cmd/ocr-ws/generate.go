@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -281,19 +282,18 @@ func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string,
 	return txtFileFull, nil
 }
 
-func updateProgress(outPath string, step int, steps int) {
-	logger.Printf("%d%% (step %d of %d)", (100*step)/steps, step, steps)
+func generateOcrPage(outPath string, page *pageInfo, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	f, _ := os.OpenFile(fmt.Sprintf("%s/progress.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
-	defer f.Close()
+	page.txtFile = ""
 
-	w := bufio.NewWriter(f)
+	txtFile, txtErr := txtFromTif(outPath, page.PID, page.Filename)
 
-	if _, err := fmt.Fprintf(w, "%d%%", (100*step)/steps); err != nil {
-		logger.Printf("Unable to write progress file : %s", err.Error())
+	if txtErr != nil {
+		logger.Printf("Unable to generate OCR from PID %s; skipping.", page.PID)
+	} else {
+		page.txtFile = txtFile
 	}
-
-	w.Flush()
 }
 
 /**
@@ -304,37 +304,42 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 	outPath := fmt.Sprintf("%s/%s", config.storageDir.value, workDir)
 	os.MkdirAll(outPath, 0777)
 
-	// initialize progress reporting:
-	// steps include each page processed, plus a final conversion step
+	// generate OCR text filenames for each page
+	// process each page in a goroutine
 
-	var steps = len(pages) + 1
-	var step = 0
+	var wg sync.WaitGroup
+
+	start := time.Now()
+
+	// use iteration instead of range to allow pageInfo struct to be modified inside function
+	//	for _, page := range pages {
+	for i := 0; i < len(pages); i++ {
+		wg.Add(1)
+		go generateOcrPage(outPath, &pages[i], &wg)
+	}
+
+	logger.Printf("Waiting for pages to complete...")
+	wg.Wait()
+	logger.Printf("All pages complete")
 
 	// iterate over page info and build a list of text files containing OCR data
+	logger.Printf("Checking for scanned pages...")
 	var txtFiles []string
 	for _, page := range pages {
-		logger.Printf("Processing PID %s with filename [%s]", page.PID, page.Filename)
+		logger.Printf("PID %s has txtFile: [%s]", page.PID, page.txtFile)
 
-		step++
-		updateProgress(outPath, step, steps)
-
-		txtFile, txtErr := txtFromTif(outPath, page.PID, page.Filename)
-		if txtErr != nil {
-			logger.Printf("Unable to generate OCR from PID %s; skipping.", page.PID)
-			continue
+		if page.txtFile != "" {
+			txtFiles = append(txtFiles, page.txtFile)
 		}
-
-		txtFiles = append(txtFiles, txtFile)
 	}
 
 	if len(txtFiles) == 0 {
-		logger.Printf("No text files to process")
+		logger.Printf("No OCR text files to process")
 		ef, _ := os.OpenFile(fmt.Sprintf("%s/fail.txt", outPath), os.O_CREATE|os.O_RDWR, 0666)
 		defer ef.Close()
 		if _, err := ef.WriteString("No text files to process"); err != nil {
 			logger.Printf("Unable to write error file : %s", err.Error())
 		}
-		updateProgress(outPath, steps, steps)
 		return
 	}
 
@@ -367,8 +372,10 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 		}
 	}
 
-	step++
-	updateProgress(outPath, step, steps)
+	elapsed := time.Since(start).Seconds()
+
+	logger.Printf("%d pages scanned in %0.2f seconds (%0.2f seconds/page)",
+		len(txtFiles), elapsed, elapsed/float64(len(txtFiles)))
 
 	// Cleanup intermediate txtFiles
 	//	exec.Command("rm", txtFiles...).Run()

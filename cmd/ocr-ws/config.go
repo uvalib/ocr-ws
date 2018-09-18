@@ -33,7 +33,7 @@ type configData struct {
 	archiveDir          configStringItem
 	storageDir          configStringItem
 	templateDir         configStringItem
-	scriptDir			configStringItem
+	scriptDir           configStringItem
 	allowUnpublished    configBoolItem
 	iiifUrlTemplate     configStringItem
 	useHttps            configBoolItem

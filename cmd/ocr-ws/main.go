@@ -19,6 +19,7 @@ type pageInfo struct {
 	PID      string
 	Filename string
 	Title    sql.NullString
+	txtFile  string
 }
 
 var db *sql.DB
