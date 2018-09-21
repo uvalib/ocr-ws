@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "github.com/gammazero/deque"
+  packages = ["."]
+  revision = "f6adf94963e448a692b33e9ddc931ff10afbb79b"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gammazero/workerpool"
+  packages = ["."]
+  revision = "48371c973101f1425ff30aef37cbaf0c65822b22"
+
+[[projects]]
   name = "github.com/go-sql-driver/mysql"
   packages = ["."]
   revision = "d523deb1b23d913de5bdada721a6071e71283618"
@@ -28,6 +40,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2a2e22278c42572898c3b19223d66781442120c459d4e2162ab7c08852dd2c97"
+  inputs-digest = "8e9bc4d8f898d6296095faddf8374394b6afca15cc02cb4b2e3bd4b9c2c9e2f7"
   solver-name = "gps-cdcl"
   solver-version = 1
