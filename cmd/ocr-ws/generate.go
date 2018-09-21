@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/gammazero/workerpool"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -282,9 +283,7 @@ func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string,
 	return txtFileFull, nil
 }
 
-func generateOcrPage(outPath string, page *pageInfo, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func generateOcrPage(outPath string, page *pageInfo) {
 	page.txtFile = ""
 
 	txtFile, txtErr := txtFromTif(outPath, page.PID, page.Filename)
@@ -307,17 +306,32 @@ func generateOcr(workDir string, pid string, ocrEmail string, pages []pageInfo) 
 	// generate OCR text filenames for each page
 	// process each page in a goroutine
 
-	var wg sync.WaitGroup
+	workers, err := strconv.Atoi(config.workerCount.value)
+
+	switch {
+	case err != nil:
+		workers = 1
+	case workers == 0:
+		workers = runtime.NumCPU()
+	default:
+		workers = 1
+	}
+
+	logger.Printf("Worker count set to [%s]; starting %d workers", config.workerCount.value, workers)
+
+	wp := workerpool.New(workers)
 
 	start := time.Now()
 
 	for i, _ := range pages {
-		wg.Add(1)
-		go generateOcrPage(outPath, &pages[i], &wg)
+		thisPage := &pages[i]
+		wp.Submit(func() {
+			generateOcrPage(outPath, thisPage)
+		})
 	}
 
 	logger.Printf("Waiting for pages to complete...")
-	wg.Wait()
+	wp.StopWait()
 	logger.Printf("All pages complete")
 
 	// iterate over page info and build a list of text files containing OCR data

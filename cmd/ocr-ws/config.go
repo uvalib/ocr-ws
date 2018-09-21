@@ -36,6 +36,8 @@ type configData struct {
 	scriptDir           configStringItem
 	allowUnpublished    configBoolItem
 	iiifUrlTemplate     configStringItem
+	workerType          configStringItem
+	workerCount         configStringItem
 	useHttps            configBoolItem
 	sslCrt              configStringItem
 	sslKey              configStringItem
@@ -57,6 +59,8 @@ func init() {
 	config.scriptDir = configStringItem{value: "", configItem: configItem{flag: "r", env: "OCRWS_SCRIPT_DIR", desc: "helper script directory"}}
 	config.allowUnpublished = configBoolItem{value: false, configItem: configItem{flag: "a", env: "OCRWS_ALLOW_UNPUBLISHED", desc: "allow unpublished"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
+	config.workerType = configStringItem{value: "", configItem: configItem{flag: "y", env: "OCRWS_WORKER_TYPE", desc: "worker type (tesseract/other APIs tbd)"}}
+	config.workerCount = configStringItem{value: "", configItem: configItem{flag: "x", env: "OCRWS_WORKER_COUNT", desc: "number of workers in worker pool"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
 	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
@@ -102,6 +106,8 @@ func getConfigValues() {
 	flagStringVar(&config.scriptDir)
 	flagBoolVar(&config.allowUnpublished)
 	flagStringVar(&config.iiifUrlTemplate)
+	flagStringVar(&config.workerType)
+	flagStringVar(&config.workerCount)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
 	flagStringVar(&config.sslKey)
@@ -122,6 +128,8 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.templateDir) && configOK
 	configOK = ensureConfigStringSet(&config.scriptDir) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.workerType) && configOK
+	configOK = ensureConfigStringSet(&config.workerCount) && configOK
 	if config.useHttps.value == true {
 		configOK = ensureConfigStringSet(&config.sslCrt) && configOK
 		configOK = ensureConfigStringSet(&config.sslKey) && configOK
@@ -145,6 +153,8 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] scriptDir           = [%s]", config.scriptDir.value)
 	logger.Printf("[CONFIG] allowUnpublished    = [%s]", strconv.FormatBool(config.allowUnpublished.value))
 	logger.Printf("[CONFIG] iiifUrlTemplate     = [%s]", config.iiifUrlTemplate.value)
+	logger.Printf("[CONFIG] workerType          = [%s]", config.workerType.value)
+	logger.Printf("[CONFIG] workerCount         = [%s]", config.workerCount.value)
 	logger.Printf("[CONFIG] useHttps            = [%s]", strconv.FormatBool(config.useHttps.value))
 	logger.Printf("[CONFIG] sslCrt              = [%s]", config.sslCrt.value)
 	logger.Printf("[CONFIG] sslKey              = [%s]", config.sslKey.value)
