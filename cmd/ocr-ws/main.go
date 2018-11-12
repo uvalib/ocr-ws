@@ -8,6 +8,12 @@ import (
 	"os"
 	"strconv"
 
+//	"github.com/aws/aws-sdk-go/aws"
+//	"github.com/aws/aws-sdk-go/aws/awserr"
+//	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws/session"
+//	"github.com/aws/aws-sdk-go/service/swf"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
@@ -24,6 +30,7 @@ type pageInfo struct {
 
 var db *sql.DB
 var logger *log.Logger
+var sess *session.Session
 
 /**
  * Main entry point for the web service
@@ -54,6 +61,10 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	// initialize AWS session
+	sess = session.Must(session.NewSession())
+	go awsPollForDecisions()
 
 	// Set routes and start server
 	mux := httprouter.New()
