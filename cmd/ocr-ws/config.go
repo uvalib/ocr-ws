@@ -40,6 +40,18 @@ type configData struct {
 	useHttps            configBoolItem
 	sslCrt              configStringItem
 	sslKey              configStringItem
+
+	awsAccessKeyId       configStringItem
+	awsSecretAccessKey   configStringItem
+	awsRegion           configStringItem
+	awsSwfDomain         configStringItem
+	awsSwfTaskList       configStringItem
+	awsSwfWorkflowType   configStringItem
+	awsSwfWorkflowVersion  configStringItem
+	awsSwfWorkflowTimeout configStringItem
+	awsSwfDecisionTimeout configStringItem
+	awsLambdaFunction   configStringItem
+	awsLambdaRole       configStringItem
 }
 
 var config configData
@@ -62,6 +74,17 @@ func init() {
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
 	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
+	config.awsAccessKeyId = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
+	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
+	config.awsRegion = configStringItem{value: "", configItem: configItem{flag: "R", env: "AWS_REGION", desc: "aws swf domain"}}
+	config.awsSwfDomain = configStringItem{value: "", configItem: configItem{flag: "D", env: "AWS_SWF_DOMAIN", desc: "aws region"}}
+	config.awsSwfTaskList = configStringItem{value: "", configItem: configItem{flag: "T", env: "AWS_SWF_TASKLIST", desc: "aws swf task list"}}
+	config.awsSwfWorkflowType = configStringItem{value: "", configItem: configItem{flag: "W", env: "AWS_SWF_WORKFLOW_TYPE", desc: "aws swf workflow type"}}
+	config.awsSwfWorkflowVersion = configStringItem{value: "", configItem: configItem{flag: "V", env: "AWS_SWF_WORKFLOW_VERSION", desc: "aws swf workflow version"}}
+	config.awsSwfWorkflowTimeout = configStringItem{value: "", configItem: configItem{flag: "O", env: "AWS_SWF_WORKFLOW_TIMEOUT", desc: "aws swf workflow timeout"}}
+	config.awsSwfDecisionTimeout = configStringItem{value: "", configItem: configItem{flag: "E", env: "AWS_SWF_DECISION_TIMEOUT", desc: "aws swf decision timeout"}}
+	config.awsLambdaFunction = configStringItem{value: "", configItem: configItem{flag: "F", env: "AWS_LAMBDA_FUNCTION", desc: "aws lambda function"}}
+	config.awsLambdaRole = configStringItem{value: "", configItem: configItem{flag: "L", env: "AWS_LAMBDA_ROLE", desc: "aws lambda role"}}
 }
 
 func getBoolEnv(optEnv string) bool {
@@ -108,6 +131,17 @@ func getConfigValues() {
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
 	flagStringVar(&config.sslKey)
+	flagStringVar(&config.awsAccessKeyId)
+	flagStringVar(&config.awsSecretAccessKey)
+	flagStringVar(&config.awsRegion)
+	flagStringVar(&config.awsSwfDomain)
+	flagStringVar(&config.awsSwfTaskList)
+	flagStringVar(&config.awsSwfWorkflowType)
+	flagStringVar(&config.awsSwfWorkflowVersion)
+	flagStringVar(&config.awsSwfWorkflowTimeout)
+	flagStringVar(&config.awsSwfDecisionTimeout)
+	flagStringVar(&config.awsLambdaFunction)
+	flagStringVar(&config.awsLambdaRole)
 
 	flag.Parse()
 
@@ -126,6 +160,18 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.workerType) && configOK
 	configOK = ensureConfigStringSet(&config.workerCount) && configOK
+	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
+	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
+	configOK = ensureConfigStringSet(&config.awsRegion) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfDomain) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfTaskList) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfWorkflowType) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfWorkflowVersion) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfWorkflowTimeout) && configOK
+	configOK = ensureConfigStringSet(&config.awsSwfDecisionTimeout) && configOK
+	configOK = ensureConfigStringSet(&config.awsLambdaFunction) && configOK
+	configOK = ensureConfigStringSet(&config.awsLambdaRole) && configOK
+
 	if config.useHttps.value == true {
 		configOK = ensureConfigStringSet(&config.sslCrt) && configOK
 		configOK = ensureConfigStringSet(&config.sslKey) && configOK
@@ -136,21 +182,32 @@ func getConfigValues() {
 		os.Exit(1)
 	}
 
-	logger.Printf("[CONFIG] listenPort          = [%s]", config.listenPort.value)
-	logger.Printf("[CONFIG] dbHost              = [%s]", config.dbHost.value)
-	logger.Printf("[CONFIG] dbName              = [%s]", config.dbName.value)
-	logger.Printf("[CONFIG] dbUser              = [%s]", config.dbUser.value)
-	logger.Printf("[CONFIG] dbPass              = [REDACTED]")
-	logger.Printf("[CONFIG] dbAllowOldPasswords = [%s]", strconv.FormatBool(config.dbAllowOldPasswords.value))
-	logger.Printf("[CONFIG] jp2kDir             = [%s]", config.jp2kDir.value)
-	logger.Printf("[CONFIG] archiveDir          = [%s]", config.archiveDir.value)
-	logger.Printf("[CONFIG] storageDir          = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] scriptDir           = [%s]", config.scriptDir.value)
-	logger.Printf("[CONFIG] allowUnpublished    = [%s]", strconv.FormatBool(config.allowUnpublished.value))
-	logger.Printf("[CONFIG] iiifUrlTemplate     = [%s]", config.iiifUrlTemplate.value)
-	logger.Printf("[CONFIG] workerType          = [%s]", config.workerType.value)
-	logger.Printf("[CONFIG] workerCount         = [%s]", config.workerCount.value)
-	logger.Printf("[CONFIG] useHttps            = [%s]", strconv.FormatBool(config.useHttps.value))
-	logger.Printf("[CONFIG] sslCrt              = [%s]", config.sslCrt.value)
-	logger.Printf("[CONFIG] sslKey              = [%s]", config.sslKey.value)
+	logger.Printf("[CONFIG] listenPort            = [%s]", config.listenPort.value)
+	logger.Printf("[CONFIG] dbHost                = [%s]", config.dbHost.value)
+	logger.Printf("[CONFIG] dbName                = [%s]", config.dbName.value)
+	logger.Printf("[CONFIG] dbUser                = [%s]", config.dbUser.value)
+	logger.Printf("[CONFIG] dbPass                = [REDACTED]")
+	logger.Printf("[CONFIG] dbAllowOldPasswords   = [%s]", strconv.FormatBool(config.dbAllowOldPasswords.value))
+	logger.Printf("[CONFIG] jp2kDir               = [%s]", config.jp2kDir.value)
+	logger.Printf("[CONFIG] archiveDir            = [%s]", config.archiveDir.value)
+	logger.Printf("[CONFIG] storageDir            = [%s]", config.storageDir.value)
+	logger.Printf("[CONFIG] scriptDir             = [%s]", config.scriptDir.value)
+	logger.Printf("[CONFIG] allowUnpublished      = [%s]", strconv.FormatBool(config.allowUnpublished.value))
+	logger.Printf("[CONFIG] iiifUrlTemplate       = [%s]", config.iiifUrlTemplate.value)
+	logger.Printf("[CONFIG] workerType            = [%s]", config.workerType.value)
+	logger.Printf("[CONFIG] workerCount           = [%s]", config.workerCount.value)
+	logger.Printf("[CONFIG] useHttps              = [%s]", strconv.FormatBool(config.useHttps.value))
+	logger.Printf("[CONFIG] sslCrt                = [%s]", config.sslCrt.value)
+	logger.Printf("[CONFIG] sslKey                = [%s]", config.sslKey.value)
+	logger.Printf("[CONFIG] awsAccessKeyId        = [%s]", config.awsAccessKeyId.value)
+	logger.Printf("[CONFIG] awsSecretAccessKey    = [%s]", config.awsSecretAccessKey.value)
+	logger.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)
+	logger.Printf("[CONFIG] awsSwfDomain          = [%s]", config.awsSwfDomain.value)
+	logger.Printf("[CONFIG] awsSwfTaskList        = [%s]", config.awsSwfTaskList.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowType    = [%s]", config.awsSwfWorkflowType.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowVersion = [%s]", config.awsSwfWorkflowVersion.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowTimeout = [%s]", config.awsSwfWorkflowTimeout.value)
+	logger.Printf("[CONFIG] awsSwfDecisionTimeout = [%s]", config.awsSwfDecisionTimeout.value)
+	logger.Printf("[CONFIG] awsLambdaFunction     = [%s]", config.awsLambdaFunction.value)
+	logger.Printf("[CONFIG] awsLambdaRole         = [%s]", config.awsLambdaRole.value)
 }
