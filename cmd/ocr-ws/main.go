@@ -8,11 +8,11 @@ import (
 	"os"
 	"strconv"
 
-//	"github.com/aws/aws-sdk-go/aws"
-//	"github.com/aws/aws-sdk-go/aws/awserr"
-//	"github.com/aws/aws-sdk-go/aws/request"
+	//"github.com/aws/aws-sdk-go/aws"
+	//"github.com/aws/aws-sdk-go/aws/awserr"
+	//"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-//	"github.com/aws/aws-sdk-go/service/swf"
+	//"github.com/aws/aws-sdk-go/service/swf"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/julienschmidt/httprouter"

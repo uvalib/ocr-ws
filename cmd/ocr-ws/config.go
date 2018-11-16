@@ -41,17 +41,17 @@ type configData struct {
 	sslCrt              configStringItem
 	sslKey              configStringItem
 
-	awsAccessKeyId       configStringItem
-	awsSecretAccessKey   configStringItem
-	awsRegion           configStringItem
-	awsSwfDomain         configStringItem
-	awsSwfTaskList       configStringItem
-	awsSwfWorkflowType   configStringItem
-	awsSwfWorkflowVersion  configStringItem
+	awsAccessKeyId        configStringItem
+	awsSecretAccessKey    configStringItem
+	awsRegion             configStringItem
+	awsSwfDomain          configStringItem
+	awsSwfTaskList        configStringItem
+	awsSwfWorkflowType    configStringItem
+	awsSwfWorkflowVersion configStringItem
 	awsSwfWorkflowTimeout configStringItem
 	awsSwfDecisionTimeout configStringItem
-	awsLambdaFunction   configStringItem
-	awsLambdaRole       configStringItem
+	awsLambdaFunction     configStringItem
+	awsLambdaRole         configStringItem
 }
 
 var config configData
