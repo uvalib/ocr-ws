@@ -296,7 +296,7 @@ func awsSubmitWorkflow(input string) error {
 	return nil
 }
 
-func awsSubmitWorkflows() {
+func awsSubmitTestWorkflows() {
 	awsSubmitWorkflow("uva-lib:2555271,uva-lib:2555272,tsm:1808296,uva-lib:2555273")
 	return
 
