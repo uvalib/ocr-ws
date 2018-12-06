@@ -45,7 +45,7 @@ func main() {
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 
 	// Load cfg
-	logger.Printf("===> ocr-ws staring up <===")
+	logger.Printf("===> ocr-ws starting up <===")
 	logger.Printf("Load configuration...")
 	getConfigValues()
 
@@ -64,8 +64,8 @@ func main() {
 
 	// initialize AWS session
 	sess = session.Must(session.NewSession())
-	go awsPollForDecisions()
-	go awsSubmitWorkflows()
+	go awsPollForDecisionTasks()
+	go awsSubmitTestWorkflows()
 
 	// Set routes and start server
 	mux := httprouter.New()
