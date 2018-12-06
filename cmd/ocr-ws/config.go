@@ -200,7 +200,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] sslCrt                = [%s]", config.sslCrt.value)
 	logger.Printf("[CONFIG] sslKey                = [%s]", config.sslKey.value)
 	logger.Printf("[CONFIG] awsAccessKeyId        = [%s]", config.awsAccessKeyId.value)
-	logger.Printf("[CONFIG] awsSecretAccessKey    = [%s]", config.awsSecretAccessKey.value)
+	logger.Printf("[CONFIG] awsSecretAccessKey    = [REDACTED]")
 	logger.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)
 	logger.Printf("[CONFIG] awsSwfDomain          = [%s]", config.awsSwfDomain.value)
 	logger.Printf("[CONFIG] awsSwfTaskList        = [%s]", config.awsSwfTaskList.value)
