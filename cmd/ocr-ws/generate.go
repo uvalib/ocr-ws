@@ -78,11 +78,8 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
-	// kick off completion polling process in a go routine
-	go monitorProgressAndNotifyResults(workDir, pid, ocrEmail)
-
 	// kick off lengthy OCR generation in a go routine
-	go generateOcr(workDir, pid, pages)
+	go generateOcr(workDir, pid, pages, ocrEmail)
 }
 
 func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string, err error) {
@@ -117,7 +114,7 @@ func txtFromTif(outPath string, pid string, tifFile string) (txtFileFull string,
 	return txtFileFull, nil
 }
 
-func generateOcrPage(outPath string, page *pageInfo) {
+func generateOcrPageLocal(outPath string, page *pageInfo) {
 	page.txtFile = ""
 
 	txtFile, txtErr := txtFromTif(outPath, page.PID, page.Filename)
@@ -132,7 +129,10 @@ func generateOcrPage(outPath string, page *pageInfo) {
 /**
  * use archived tif files to generate OCR for a PID
  */
-func generateOcr(workDir string, pid string, pages []pageInfo) {
+func generateOcrLocal(workDir string, pid string, pages []pageInfo, email string) {
+	// kick off completion polling process in a go routine
+	go monitorProgressAndNotifyResults(workDir, pid, email)
+
 	// Make sure the work directory exists
 	outPath := fmt.Sprintf("%s/%s", config.storageDir.value, workDir)
 	os.MkdirAll(outPath, 0777)
@@ -160,7 +160,7 @@ func generateOcr(workDir string, pid string, pages []pageInfo) {
 	for i, _ := range pages {
 		thisPage := &pages[i]
 		wp.Submit(func() {
-			generateOcrPage(outPath, thisPage)
+			generateOcrPageLocal(outPath, thisPage)
 		})
 	}
 
@@ -225,4 +225,18 @@ func generateOcr(workDir string, pid string, pages []pageInfo) {
 
 	// Cleanup intermediate txtFiles
 	//	exec.Command("rm", txtFiles...).Run()
+}
+
+func generateOcrAWS(workDir string, pid string, pages []pageInfo, email string) {
+	req := workflowRequest{}
+
+	for _, page := range pages {
+		req.Pages = append(req.Pages, ocrPageInfo{Lang: page.lang, Pid: page.PID})
+	}
+
+	awsSubmitWorkflow(req)
+}
+
+func generateOcr(workDir string, pid string, pages []pageInfo, email string) {
+	generateOcrAWS(workDir, pid, pages, email)
 }
