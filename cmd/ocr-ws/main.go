@@ -26,6 +26,7 @@ type pageInfo struct {
 	Filename string
 	Title    sql.NullString
 	txtFile  string
+	lang     string
 }
 
 var db *sql.DB
@@ -65,7 +66,7 @@ func main() {
 	// initialize AWS session
 	sess = session.Must(session.NewSession())
 	go awsPollForDecisionTasks()
-	go awsSubmitTestWorkflows()
+//	go awsSubmitTestWorkflows()
 
 	// Set routes and start server
 	mux := httprouter.New()

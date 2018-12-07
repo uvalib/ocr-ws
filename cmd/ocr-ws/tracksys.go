@@ -74,8 +74,9 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 	var availability sql.NullInt64
 	var metadataID int
 	var title string
-	qs := "select id, title, availability_policy_id from metadata where pid=?"
-	err = db.QueryRow(qs, pid).Scan(&metadataID, &title, &availability)
+	var ocrLanguage sql.NullString
+	qs := "select id, title, availability_policy_id, ocr_language_hint from metadata where pid=?"
+	err = db.QueryRow(qs, pid).Scan(&metadataID, &title, &availability, &ocrLanguage)
 	if err != nil {
 		logger.Printf("Request failed: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -145,6 +146,11 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 			var pg pageInfo
 			var mfID int
 			err = rows.Scan(&mfID, &pg.PID, &pg.Filename, &pg.Title)
+			if ocrLanguage.Valid {
+				if len(ocrLanguage.String) == 3 {
+					pg.lang = ocrLanguage.String
+				}
+			}
 			if err != nil {
 				logger.Printf("Unable to retrieve MasterFile data for OCR generation %s: %s", pid, err.Error())
 				continue
