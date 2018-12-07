@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -15,7 +16,7 @@ import (
 // holds information we extract from a decision task
 type decisionInfo struct {
 	input string
-	pids []string
+	req workflowRequest
 	taskToken string
 	workflowId string
 	lastEventId int64
@@ -23,6 +24,34 @@ type decisionInfo struct {
 	recentEvents []*swf.HistoryEvent
 	ocrResults []*swf.HistoryEvent
 }
+
+// json for inter-workflow communication
+type ocrPageInfo struct {
+	Lang string `json:"lang,omitempty"`
+	Pid string `json:"pid,omitempty"`
+}
+
+type workflowRequest struct {
+	Pages []ocrPageInfo `json:"pages,omitempty"`
+}
+
+type lambdaRequest struct {
+	Lang string `json:"lang,omitempty"`
+	Url string `json:"url,omitempty"`
+}
+
+type lambdaResponse struct {
+	Text string `json:"text,omitempty`
+}
+
+// json for failed lambda error details
+type lambdaFailureDetails struct {
+	ErrorMessage string `json:"errorMessage,omitempty"`
+	ErrorType string `json:"errorType,omitempty"`
+	StackTrace []string `json:"stackTrace,omitempty"`
+}
+
+// functions
 
 func newUUID() string {
 	taskUUID := uuid.Must(uuid.NewV4())
@@ -97,8 +126,15 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		// extract the original input string containing pids that were processed
 		if info.input == "" && t == "WorkflowExecutionStarted" {
 			info.input = *e.WorkflowExecutionStartedEventAttributes.Input
-			info.pids = strings.FieldsFunc(info.input, func(c rune) bool { return c == ',' })
-			logger.Printf("input      = [%s] (%d pids)",info.input,len(info.pids))
+			json.Unmarshal([]byte(info.input), &info.req)
+			pages := []ocrPageInfo{}
+			for _, p := range info.req.Pages {
+				if p.Pid != "" {
+					pages = append(pages, p)
+				}
+			}
+			info.req.Pages = pages
+			logger.Printf("input      = [%s] (%d pids)",info.input,len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
@@ -121,7 +157,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		info.recentEvents = append(info.recentEvents, e)
 	}
 
-	logger.Printf("lambdas completed: %d / %d", len(info.ocrResults), len(info.pids))
+	logger.Printf("lambdas completed: %d / %d", len(info.ocrResults), len(info.req.Pages))
 
 	lastEventType := *info.recentEvents[len(info.recentEvents)-1].EventType
 	logger.Printf("last event type: [%s]", lastEventType)
@@ -136,7 +172,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	switch {
 	// completion condition (failure): no pids found in the input string
 	// decision: fail the workflow
-	case len(info.pids) == 0:
+	case len(info.req.Pages) == 0:
 		decisions = append(decisions, awsFailWorkflowExecution("failure","No PIDs to process"))
 
 	// start of workflow
@@ -144,15 +180,16 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	case lastEventType == "WorkflowExecutionStarted":
 		url := config.iiifUrlTemplate.value
 
-		for _, pid := range info.pids {
-			iiifUrl := strings.Replace(url, "{PID}", pid, 1)
-			input := fmt.Sprintf(`{ "args": "-l eng", "url": "%s" }`, iiifUrl)
+		for _, page := range info.req.Pages {
+			req := lambdaRequest{}
+			req.Url = strings.Replace(url, "{PID}", page.Pid, 1)
+			input := fmt.Sprintf(`{ "args": "-l eng", "url": "%s" }`, req.Url)
 			decisions = append(decisions, awsScheduleLambdaFunction(input))
 		}
 
 	// completion condition (success): number of successful lambda executions = number of pids
 	// decision: complete the workflow
-	case len(info.ocrResults) == len(info.pids):
+	case len(info.ocrResults) == len(info.req.Pages):
 		decisions = append(decisions, awsCompleteWorkflowExecution("success"))
 		go awsFinalizeResults(info)
 
@@ -167,22 +204,29 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 			var rerunInput string
 
-			// if this a recently failed lambda execution, rerun it
+			// if this a recently failed lambda execution, determine what to do with it
 			if t == "LambdaFunctionFailed" {
-				logger.Printf("lambda failed (%s - %s); rerunning", t, *e.LambdaFunctionFailedEventAttributes.Reason, *e.LambdaFunctionFailedEventAttributes.Details)
-				origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionFailedEventAttributes.ScheduledEventId)
-				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				logger.Printf("lambda failed (%s)", *e.LambdaFunctionFailedEventAttributes.Reason)
+				details := lambdaFailureDetails{}
+				json.Unmarshal([]byte(*e.LambdaFunctionFailedEventAttributes.Details), &details)
+
+				logger.Printf("lambda failed: [%s] / [%s]", details.ErrorType, details.ErrorMessage)
+
+				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure","one or more pages failed"))
+				break
+//				origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionFailedEventAttributes.ScheduledEventId)
+//				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
 			// if this a recently timed out lambda execution, rerun it
 			if t == "LambdaFunctionTimedOut" {
-				logger.Printf("lambda timed out (%s); rerunning", t, *e.LambdaFunctionTimedOutEventAttributes.TimeoutType)
+				logger.Printf("lambda timed out (%s)", *e.LambdaFunctionTimedOutEventAttributes.TimeoutType)
 				origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionTimedOutEventAttributes.ScheduledEventId)
 				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
 			if rerunInput != "" {
-				logger.Printf("original input: [%s]", rerunInput)
+				logger.Printf("rerunning lambda with original input: [%s]", rerunInput)
 				decisions = append(decisions, awsScheduleLambdaFunction(rerunInput))
 			}
 		}
@@ -230,6 +274,7 @@ func awsPollForDecisionTasks() {
 			SetTaskList((&swf.TaskList{}).
 				SetName(config.awsSwfTaskList.value))
 
+		// iterate over pages, collecting initial workflow information to process later
 		pollErr := svc.PollForDecisionTaskPages(pollParams,
 			func(page *swf.PollForDecisionTaskOutput, lastPage bool) bool {
 				if page.PreviousStartedEventId != nil {
@@ -261,14 +306,21 @@ func awsPollForDecisionTasks() {
 			continue
 		}
 
+		// process this decision task
 		awsHandleDecisionTask(svc, info)
 	}
 }
 
-func awsSubmitWorkflow(input string) error {
+func awsSubmitWorkflow(req workflowRequest) error {
 	svc := swf.New(sess)
 
 	id := newUUID()
+
+	input, jsonErr := json.Marshal(req)
+	if jsonErr != nil {
+		logger.Printf("JSON marshal failed: [%s]", jsonErr.Error())
+		return errors.New("Failed to encoding workflow request")
+	}
 
 	startParams := (&swf.StartWorkflowExecutionInput{}).
 		SetDomain(config.awsSwfDomain.value).
@@ -282,7 +334,7 @@ func awsSubmitWorkflow(input string) error {
 		SetLambdaRole(config.awsLambdaRole.value).
 		SetExecutionStartToCloseTimeout(config.awsSwfWorkflowTimeout.value).
 		SetTaskStartToCloseTimeout(config.awsSwfDecisionTimeout.value).
-		SetInput(input)
+		SetInput(string(input))
 
 	res, startErr := svc.StartWorkflowExecution(startParams)
 
@@ -297,7 +349,19 @@ func awsSubmitWorkflow(input string) error {
 }
 
 func awsSubmitTestWorkflows() {
-	awsSubmitWorkflow("uva-lib:2555271,uva-lib:2555272,tsm:1808296,uva-lib:2555273")
+	req := workflowRequest{
+		Pages: []ocrPageInfo{
+			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555271"},
+			ocrPageInfo{Lang: "huh", Pid: ""},
+			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555272"},
+			ocrPageInfo{Lang: "wat"},
+			ocrPageInfo{Lang: "eng", Pid: "tsm:1808296"},
+			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555273"},
+		},
+	}
+
+	awsSubmitWorkflow(req)
+
 	return
 
 	s1 := rand.NewSource(time.Now().UnixNano())
@@ -309,6 +373,15 @@ func awsSubmitTestWorkflows() {
 		s := r1.Intn(45) + 15
 		time.Sleep(time.Duration(s) * time.Second)
 
-		awsSubmitWorkflow("uva-lib:2555271,uva-lib:2555272,uva-lib:2555273")
+		req := workflowRequest{
+			Pages: []ocrPageInfo{
+				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555271"},
+				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555272"},
+				ocrPageInfo{Lang: "eng", Pid: "tsm:1808296"},
+				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555273"},
+			},
+		}
+
+		awsSubmitWorkflow(req)
 	}
 }
