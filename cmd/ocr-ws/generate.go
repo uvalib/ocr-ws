@@ -33,25 +33,13 @@ type ocrInfo struct {
 	pages   []pageInfo
 }
 
-func pagesEqual(a, b []pageInfo) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i, _ := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 /**
  * Handle a request for OCR of page images
  */
 func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	logger.Printf("%s %s", r.Method, r.RequestURI)
+
+	var err error
 
 	ocr := ocrInfo{}
 
@@ -86,7 +74,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// See if destination already extsts...
 	ocr.destDir = fmt.Sprintf("%s/%s", config.storageDir.value, ocr.workDir)
 
-	if _, err := os.Stat(ocr.destDir); err == nil {
+	if _, err = os.Stat(ocr.destDir); err == nil {
 		// path already exists; don't start another request, just start
 		// normal completion polling routine
 		logger.Printf("Request already in progress or completed")
@@ -94,34 +82,12 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
-	dbPages, dbErr := tsDBGetPages(ocr, w)
-	apiPages, apiErr := tsAPIGetPages(ocr, w)
-
-	if pagesEqual(dbPages, apiPages) == false {
-		logger.Printf("pages not equal:")
-
-		s := ""
-		for _, p := range dbPages {
-			s = s + p.PID + " "
-		}
-		logger.Printf("db pages: [%s]", s)
-
-		s = ""
-		for _, p := range apiPages {
-			s = s + p.PID + " "
-		}
-		logger.Printf("apiPages: [%s]", s)
+	if ocr.pages, err = tsAPIGetPages(ocr, w); err != nil {
+		logger.Printf("Tracksys API error: [%s]", err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Tracksys API error: [%s]", err.Error())
+		return
 	}
-
-	if dbErr != nil {
-		logger.Printf("dbErr : %s", dbErr.Error())
-	}
-
-	if apiErr != nil {
-		logger.Printf("apiErr: %s", apiErr.Error())
-	}
-
-	ocr.pages = apiPages
 
 	// kick off lengthy OCR generation in a go routine
 	go generateOcr(ocr)

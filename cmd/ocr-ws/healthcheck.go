@@ -12,30 +12,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func checkTracksysDatabase() bool {
-	// check tracksys database connection
-
-	tsPid := "uva-lib:2584807"
-	cnt, expectedCount := 0, 1
-	tsStatus := true
-
-	logger.Printf("[HEALTH] [Tracksys] checking for PID: [%s]", tsPid)
-
-	qs := "select count(*) as cnt from metadata b where pid=?"
-	db.QueryRow(qs, tsPid).Scan(&cnt)
-
-	logger.Printf("[HEALTH] [Tracksys] record count: expected %d, got %d", expectedCount, cnt)
-
-	if cnt != expectedCount {
-		logger.Printf("[HEALTH] [Tracksys] ERROR: count mismatch")
-		tsStatus = false
-	}
-
-	logger.Printf("[HEALTH] [Tracksys] SUCCESS")
-
-	return tsStatus
-}
-
 func checkIIIFService() bool {
 	// check IIIF server
 
@@ -114,7 +90,8 @@ func checkFilesystem() bool {
 func healthCheckHandler(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	rw.Header().Set("Content-Type", "application/json")
 
-	tsStatus := checkTracksysDatabase()
+//	tsStatus := checkTracksysAPI()
+	tsStatus := true
 	iiifStatus := checkIIIFService()
 	fsStatus := checkFilesystem()
 

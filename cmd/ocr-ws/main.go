@@ -1,23 +1,19 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
 )
 
 const version = "0.1"
 
-var db *sql.DB
 var logger *log.Logger
 var sess *session.Session
 var client *http.Client
@@ -35,19 +31,6 @@ func main() {
 
 	// initialize http client
 	client = &http.Client{Timeout: 10 * time.Second}
-
-	// Init DB connection
-	logger.Printf("Init DB connection...")
-	connectStr := fmt.Sprintf("%s:%s@tcp(%s)/%s?allowOldPasswords=%s", config.tsDBUser.value, config.tsDBPass.value,
-		config.tsDBHost.value, config.tsDBName.value, strconv.FormatBool(config.tsDBAllowOldPasswords.value))
-
-	var err error
-	db, err = sql.Open("mysql", connectStr)
-	if err != nil {
-		fmt.Printf("Database connection failed: %s", err.Error())
-		os.Exit(1)
-	}
-	defer db.Close()
 
 	// initialize AWS session
 	sess = session.Must(session.NewSession())
