@@ -15,20 +15,20 @@ import (
 
 // holds information we extract from a decision task
 type decisionInfo struct {
-	input string
-	req workflowRequest
-	taskToken string
-	workflowId string
-	lastEventId int64
-	allEvents []*swf.HistoryEvent
+	input        string
+	req          workflowRequest
+	taskToken    string
+	workflowId   string
+	lastEventId  int64
+	allEvents    []*swf.HistoryEvent
 	recentEvents []*swf.HistoryEvent
-	ocrResults []*swf.HistoryEvent
+	ocrResults   []*swf.HistoryEvent
 }
 
 // json for inter-workflow communication
 type ocrPageInfo struct {
 	Lang string `json:"lang,omitempty"`
-	Pid string `json:"pid,omitempty"`
+	Pid  string `json:"pid,omitempty"`
 }
 
 type workflowRequest struct {
@@ -37,7 +37,7 @@ type workflowRequest struct {
 
 type lambdaRequest struct {
 	Lang string `json:"lang,omitempty"`
-	Url string `json:"url,omitempty"`
+	Url  string `json:"url,omitempty"`
 }
 
 type lambdaResponse struct {
@@ -46,9 +46,9 @@ type lambdaResponse struct {
 
 // json for failed lambda error details
 type lambdaFailureDetails struct {
-	ErrorMessage string `json:"errorMessage,omitempty"`
-	ErrorType string `json:"errorType,omitempty"`
-	StackTrace []string `json:"stackTrace,omitempty"`
+	ErrorMessage string   `json:"errorMessage,omitempty"`
+	ErrorType    string   `json:"errorType,omitempty"`
+	StackTrace   []string `json:"stackTrace,omitempty"`
 }
 
 // functions
@@ -114,7 +114,7 @@ func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent
 }
 
 func awsFinalizeResults(info decisionInfo) {
-	for i, e:= range info.ocrResults {
+	for i, e := range info.ocrResults {
 		logger.Printf("ocrResult[%d]: %s\n%s\n", i, *e.EventType, *e.LambdaFunctionCompletedEventAttributes.Result)
 	}
 }
@@ -134,7 +134,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				}
 			}
 			info.req.Pages = pages
-			logger.Printf("input      = [%s] (%d pids)",info.input,len(info.req.Pages))
+			logger.Printf("input	  = [%s] (%d pids)", info.input, len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
@@ -173,7 +173,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// completion condition (failure): no pids found in the input string
 	// decision: fail the workflow
 	case len(info.req.Pages) == 0:
-		decisions = append(decisions, awsFailWorkflowExecution("failure","No PIDs to process"))
+		decisions = append(decisions, awsFailWorkflowExecution("failure", "No PIDs to process"))
 
 	// start of workflow
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
@@ -212,10 +212,10 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 				logger.Printf("lambda failed: [%s] / [%s]", details.ErrorType, details.ErrorMessage)
 
-				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure","one or more pages failed"))
+				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
 				break
-//				origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionFailedEventAttributes.ScheduledEventId)
-//				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				//origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionFailedEventAttributes.ScheduledEventId)
+				//rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
 			// if this a recently timed out lambda execution, rerun it
@@ -258,7 +258,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		return
 	}
 
-//	logger.Printf("respond response: [%s]", resp.GoString())
+	//logger.Printf("respond response: [%s]", resp.GoString())
 }
 
 func awsPollForDecisionTasks() {
@@ -384,4 +384,14 @@ func awsSubmitTestWorkflows() {
 
 		awsSubmitWorkflow(req)
 	}
+}
+
+func awsGenerateOcr(ocr ocrInfo) {
+	req := workflowRequest{}
+
+	for _, page := range ocr.pages {
+		req.Pages = append(req.Pages, ocrPageInfo{Lang: page.lang, Pid: page.PID})
+	}
+
+	awsSubmitWorkflow(req)
 }
