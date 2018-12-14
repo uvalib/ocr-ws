@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func determinePidType(pid string) (pidType string) {
+func tsDBDeterminePidType(pid string) (pidType string) {
 	var cnt int
 
 	pidType = "invalid"
@@ -33,11 +33,11 @@ func determinePidType(pid string) (pidType string) {
 	return
 }
 
-func getMasterFilePages(pid string, w http.ResponseWriter) (pages []pageInfo, err error) {
+func tsDBGetMasterFilePages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
 	var pg pageInfo
 	var origID sql.NullInt64
 	qs := `select pid, filename, title, original_mf_id from master_files where pid = ?`
-	err = db.QueryRow(qs, pid).Scan(&pg.PID, &pg.Filename, &pg.Title, &origID)
+	err = db.QueryRow(qs, ocr.req.pid).Scan(&pg.PID, &pg.Filename, &pg.Title, &origID)
 	if err != nil {
 		logger.Printf("Request failed: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -67,16 +67,17 @@ func getMasterFilePages(pid string, w http.ResponseWriter) (pages []pageInfo, er
 // unitID will NOT be set. Run through all units and only include those that are
 // in the DL and are publicly visible
 //
-func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages string) (pages []pageInfo, err error) {
+func tsDBGetMetadataPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
 	// Get metadata for the passed PID
-	logger.Printf("Get Metadata pages params: PID: %s, Unit %d, Pages: %s", pid, unitID, ocrPages)
+	unitID, _ := strconv.Atoi(ocr.req.unit)
+	logger.Printf("Get Metadata pages params: PID: %s, Unit %d, Pages: %s", ocr.req.pid, unitID, ocr.req.pages)
 
 	var availability sql.NullInt64
 	var metadataID int
 	var title string
 	var ocrLanguage sql.NullString
 	qs := "select id, title, availability_policy_id, ocr_language_hint from metadata where pid=?"
-	err = db.QueryRow(qs, pid).Scan(&metadataID, &title, &availability, &ocrLanguage)
+	err = db.QueryRow(qs, ocr.req.pid).Scan(&metadataID, &title, &availability, &ocrLanguage)
 	if err != nil {
 		logger.Printf("Request failed: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -86,9 +87,9 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 
 	// Must have availability set
 	if availability.Valid == false && config.allowUnpublished.value == false {
-		logger.Printf("%s not found", pid)
+		logger.Printf("%s not found", ocr.req.pid)
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "%s not found", pid)
+		fmt.Fprintf(w, "%s not found", ocr.req.pid)
 		return nil, errors.New("PID does not have availability set")
 	}
 
@@ -99,30 +100,30 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 		if i == 0 {
 			// Non-cloned master files
 			qs = `select m.id, m.pid, m.filename, m.title from master_files m
-               inner join units u on u.id = m.unit_id
-               where m.metadata_id = ? and u.include_in_dl = 1 and m.original_mf_id is null`
+			   inner join units u on u.id = m.unit_id
+			   where m.metadata_id = ? and u.include_in_dl = 1 and m.original_mf_id is null`
 			if unitID > 0 {
 				qs = `select m.id, m.pid, m.filename, m.title from master_files m
-                  where unit_id = ? and m.original_mf_id is null`
+				  where unit_id = ? and m.original_mf_id is null`
 				queryParams = []interface{}{unitID}
 			}
 		} else {
 			// Cloned master files
 			qs = `select om.id, om.pid, om.filename, om.title from master_files m
-			      inner join master_files om on om.id = m.original_mf_id
-               inner join units u on u.id = m.unit_id
-			      where m.metadata_id = ? and u.include_in_dl = 1 and m.original_mf_id is not null`
+				  inner join master_files om on om.id = m.original_mf_id
+			   inner join units u on u.id = m.unit_id
+				  where m.metadata_id = ? and u.include_in_dl = 1 and m.original_mf_id is not null`
 			if unitID > 0 {
 				qs = `select om.id, om.pid, om.filename, om.title from master_files m
-   			      inner join master_files om on om.id = m.original_mf_id
-   			      where m.unit_id = ? and m.original_mf_id is not null`
+   				  inner join master_files om on om.id = m.original_mf_id
+   				  where m.unit_id = ? and m.original_mf_id is not null`
 				queryParams = []interface{}{unitID}
 			}
 		}
 
 		// Filter to only pages requested?
-		if len(ocrPages) > 0 {
-			idStr := strings.Split(ocrPages, ",")
+		if len(ocr.req.pages) > 0 {
+			idStr := strings.Split(ocr.req.pages, ",")
 			for _, val := range idStr {
 				id, invalid := strconv.Atoi(val)
 				if invalid == nil {
@@ -152,7 +153,7 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 				}
 			}
 			if err != nil {
-				logger.Printf("Unable to retrieve MasterFile data for OCR generation %s: %s", pid, err.Error())
+				logger.Printf("Unable to retrieve MasterFile data for OCR generation %s: %s", ocr.req.pid, err.Error())
 				continue
 			}
 
@@ -160,4 +161,21 @@ func getMetadataPages(pid string, w http.ResponseWriter, unitID int, ocrPages st
 		}
 	}
 	return pages, nil
+}
+
+func tsDBGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
+	pidType := tsDBDeterminePidType(ocr.req.pid)
+	logger.Printf("PID %s is a %s", ocr.req.pid, pidType)
+
+	switch pidType {
+	case "metadata":
+		return tsDBGetMetadataPages(ocr, w)
+	case "master_file":
+		return tsDBGetMasterFilePages(ocr, w)
+	default:
+		logger.Printf("Unknown PID %s", ocr.req.pid)
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "PID %s not found", ocr.req.pid)
+		return nil, errors.New("PID is not a metadata or master_file")
+	}
 }
