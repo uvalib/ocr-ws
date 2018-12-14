@@ -48,10 +48,6 @@ func checkIIIFService() bool {
 	url := config.iiifUrlTemplate.value
 	url = strings.Replace(url, "{PID}", iiifPid, 1)
 
-	timeout := time.Duration(5 * time.Second)
-	client := http.Client{
-		Timeout: timeout,
-	}
 	resp, err := client.Get(url)
 	if err != nil {
 		logger.Printf("[HEALTH] [IIIF] ERROR: Get: (%s)", err)
