@@ -94,7 +94,6 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 }
 
 func generateOcr(ocr ocrInfo) {
-	logger.Printf("would ocr now...")
-	//	localGenerateOcr(ocr)
+	logger.Printf("would call awsGenerateOcr()...")
 	//	awsGenerateOcr(ocr)
 }
