@@ -24,9 +24,7 @@ type configBoolItem struct {
 
 type configData struct {
 	listenPort               configStringItem
-	archiveDir               configStringItem
 	storageDir               configStringItem
-	scriptDir                configStringItem
 	iiifUrlTemplate          configStringItem
 	useHttps                 configBoolItem
 	sslCrt                   configStringItem
@@ -50,9 +48,7 @@ var config configData
 
 func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
-	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_ARCHIVE_DIR", desc: "archival tif mount directory"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
-	config.scriptDir = configStringItem{value: "", configItem: configItem{flag: "r", env: "OCRWS_SCRIPT_DIR", desc: "helper script directory"}}
 	config.tsAPIPidUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_TRACKSYS_API_PID_URL_TEMPLATE", desc: "tracksys /api/pid url template"}}
 	config.tsAPIManifestUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_MANIFEST_URL_TEMPLATE", desc: "tracksys /api/manifest url template"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
@@ -100,9 +96,7 @@ func flagBoolVar(item *configBoolItem) {
 func getConfigValues() {
 	// get values from the command line first, falling back to environment variables
 	flagStringVar(&config.listenPort)
-	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.storageDir)
-	flagStringVar(&config.scriptDir)
 	flagStringVar(&config.tsAPIPidUrlTemplate)
 	flagStringVar(&config.tsAPIManifestUrlTemplate)
 	flagStringVar(&config.iiifUrlTemplate)
@@ -127,9 +121,7 @@ func getConfigValues() {
 	// die if any of them are not set
 	configOK := true
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
-	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
-	configOK = ensureConfigStringSet(&config.scriptDir) && configOK
 	configOK = ensureConfigStringSet(&config.tsAPIPidUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsAPIManifestUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
@@ -156,9 +148,7 @@ func getConfigValues() {
 	}
 
 	logger.Printf("[CONFIG] listenPort               = [%s]", config.listenPort.value)
-	logger.Printf("[CONFIG] archiveDir               = [%s]", config.archiveDir.value)
 	logger.Printf("[CONFIG] storageDir               = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] scriptDir                = [%s]", config.scriptDir.value)
 	logger.Printf("[CONFIG] tsAPIPidUrlTemplate      = [%s]", config.tsAPIPidUrlTemplate.value)
 	logger.Printf("[CONFIG] tsAPIManifestUrlTemplate = [%s]", config.tsAPIManifestUrlTemplate.value)
 	logger.Printf("[CONFIG] iiifUrlTemplate          = [%s]", config.iiifUrlTemplate.value)
