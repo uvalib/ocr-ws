@@ -90,6 +90,13 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
+	if len(ocr.pages) == 0 {
+		logger.Printf("No pages found")
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "No pages found for this PID")
+		return
+	}
+
 	var s []string
 	for _, p := range ocr.pages {
 		s = append(s, p.PID)
