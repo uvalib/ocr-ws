@@ -47,8 +47,8 @@ type tsAPIManifestResponse struct {
 	Files []tsAPIManifestFile
 }
 
-func tsAPIGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
-	url := strings.Replace(config.tsAPIManifestUrlTemplate.value, "{PID}", ocr.req.pid, 1)
+func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
+	url := strings.Replace(config.tsGetManifestUrlTemplate.value, "{PID}", ocr.req.pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -81,8 +81,8 @@ func tsAPIGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) (pages []page
 	return pages, nil
 }
 
-func tsAPIGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
-	url := strings.Replace(config.tsAPIPidUrlTemplate.value, "{PID}", ocr.req.pid, 1)
+func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
+	url := strings.Replace(config.tsGetPidUrlTemplate.value, "{PID}", ocr.req.pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -116,7 +116,7 @@ func tsAPIGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err er
 
 	switch {
 	case strings.Contains(tsPidInfo.Type, "metadata"):
-		return tsAPIGetPagesFromManifest(ocr, w)
+		return tsGetPagesFromManifest(ocr, w)
 	case tsPidInfo.Type == "component":
 		return nil, errors.New("PID is a component")
 	}
@@ -124,4 +124,12 @@ func tsAPIGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err er
 	pages = append(pages, pageInfo{PID: tsPidInfo.Pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
 
 	return pages, nil
+}
+
+func tsGetText(pid string) (error, string) {
+	return nil, "blah"
+}
+
+func tsPostText(pid, text string) error {
+	return nil
 }

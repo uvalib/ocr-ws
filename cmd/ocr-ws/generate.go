@@ -83,7 +83,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
-	if ocr.pages, err = tsAPIGetPages(ocr, w); err != nil {
+	if ocr.pages, err = tsGetPages(ocr, w); err != nil {
 		logger.Printf("Tracksys API error: [%s]", err.Error())
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Tracksys API error: [%s]", err.Error())

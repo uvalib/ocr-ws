@@ -29,8 +29,10 @@ type configData struct {
 	useHttps                 configBoolItem
 	sslCrt                   configStringItem
 	sslKey                   configStringItem
-	tsAPIPidUrlTemplate      configStringItem
-	tsAPIManifestUrlTemplate configStringItem
+	tsGetPidUrlTemplate      configStringItem
+	tsGetManifestUrlTemplate configStringItem
+	tsGetFullTextUrlTemplate configStringItem
+	tsPutFullTextUrlTemplate configStringItem
 	awsAccessKeyId           configStringItem
 	awsSecretAccessKey       configStringItem
 	awsRegion                configStringItem
@@ -49,8 +51,10 @@ var config configData
 func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
-	config.tsAPIPidUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_TRACKSYS_API_PID_URL_TEMPLATE", desc: "tracksys /api/pid url template"}}
-	config.tsAPIManifestUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_MANIFEST_URL_TEMPLATE", desc: "tracksys /api/manifest url template"}}
+	config.tsGetPidUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_GET_PID_URL_TEMPLATE", desc: "tracksys get pid url template"}}
+	config.tsGetManifestUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_GET_MANIFEST_URL_TEMPLATE", desc: "tracksys get manifest url template"}}
+	config.tsGetFullTextUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_GET_FULLTEXT_URL_TEMPLATE", desc: "tracksys get fulltext url template"}}
+	config.tsPutFullTextUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_PUT_FULLTEXT_URL_TEMPLATE", desc: "tracksys put fulltext url template"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
@@ -97,8 +101,10 @@ func getConfigValues() {
 	// get values from the command line first, falling back to environment variables
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
-	flagStringVar(&config.tsAPIPidUrlTemplate)
-	flagStringVar(&config.tsAPIManifestUrlTemplate)
+	flagStringVar(&config.tsGetPidUrlTemplate)
+	flagStringVar(&config.tsGetManifestUrlTemplate)
+	flagStringVar(&config.tsGetFullTextUrlTemplate)
+	flagStringVar(&config.tsPutFullTextUrlTemplate)
 	flagStringVar(&config.iiifUrlTemplate)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
@@ -122,8 +128,10 @@ func getConfigValues() {
 	configOK := true
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
-	configOK = ensureConfigStringSet(&config.tsAPIPidUrlTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsAPIManifestUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsGetPidUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsGetManifestUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsGetFullTextUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsPutFullTextUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
 	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
@@ -149,8 +157,10 @@ func getConfigValues() {
 
 	logger.Printf("[CONFIG] listenPort               = [%s]", config.listenPort.value)
 	logger.Printf("[CONFIG] storageDir               = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] tsAPIPidUrlTemplate      = [%s]", config.tsAPIPidUrlTemplate.value)
-	logger.Printf("[CONFIG] tsAPIManifestUrlTemplate = [%s]", config.tsAPIManifestUrlTemplate.value)
+	logger.Printf("[CONFIG] tsGetPidUrlTemplate      = [%s]", config.tsGetPidUrlTemplate.value)
+	logger.Printf("[CONFIG] tsGetManifestUrlTemplate = [%s]", config.tsGetManifestUrlTemplate.value)
+	logger.Printf("[CONFIG] tsGetFullTextUrlTemplate = [%s]", config.tsGetFullTextUrlTemplate.value)
+	logger.Printf("[CONFIG] tsPutFullTextUrlTemplate = [%s]", config.tsPutFullTextUrlTemplate.value)
 	logger.Printf("[CONFIG] iiifUrlTemplate          = [%s]", config.iiifUrlTemplate.value)
 	logger.Printf("[CONFIG] useHttps                 = [%s]", strconv.FormatBool(config.useHttps.value))
 	logger.Printf("[CONFIG] sslCrt                   = [%s]", config.sslCrt.value)

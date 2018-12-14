@@ -90,7 +90,7 @@ func checkFilesystem() bool {
 func healthCheckHandler(rw http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	rw.Header().Set("Content-Type", "application/json")
 
-//	tsStatus := checkTracksysAPI()
+	//tsStatus := checkTracksysAPI()
 	tsStatus := true
 	iiifStatus := checkIIIFService()
 	fsStatus := checkFilesystem()
