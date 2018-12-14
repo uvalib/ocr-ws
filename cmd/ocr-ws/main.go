@@ -41,9 +41,6 @@ func main() {
 	mux := httprouter.New()
 	mux.GET("/", rootHandler)
 	mux.GET("/ocr/:pid", generateHandler)
-	mux.GET("/ocr/:pid/status", statusHandler)
-	mux.GET("/ocr/:pid/download", downloadHandler)
-	mux.GET("/ocr/:pid/delete", deleteHandler)
 	mux.GET("/healthcheck", healthCheckHandler)
 	logger.Printf("Start service on port %s", config.listenPort.value)
 
