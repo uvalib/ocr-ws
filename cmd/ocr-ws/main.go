@@ -7,13 +7,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
-	//"github.com/aws/aws-sdk-go/aws"
-	//"github.com/aws/aws-sdk-go/aws/awserr"
-	//"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	//"github.com/aws/aws-sdk-go/service/swf"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/cors"
@@ -21,28 +17,15 @@ import (
 
 const version = "0.1"
 
-type pageInfo struct {
-	PID      string
-	Filename string
-	Title    sql.NullString
-	txtFile  string
-	lang     string
-}
-
 var db *sql.DB
 var logger *log.Logger
 var sess *session.Session
+var client *http.Client
 
 /**
  * Main entry point for the web service
  */
 func main() {
-	/*
-		lf, _ := os.OpenFile("service.log", os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
-		defer lf.Close()
-		logger = log.New(lf, "service: ", log.LstdFlags)
-	*/
-	// use below to log to console....
 	logger = log.New(os.Stdout, "", log.LstdFlags)
 
 	// Load cfg
@@ -50,10 +33,13 @@ func main() {
 	logger.Printf("Load configuration...")
 	getConfigValues()
 
+	// initialize http client
+	client = &http.Client{Timeout: 10 * time.Second}
+
 	// Init DB connection
 	logger.Printf("Init DB connection...")
-	connectStr := fmt.Sprintf("%s:%s@tcp(%s)/%s?allowOldPasswords=%s", config.dbUser.value, config.dbPass.value,
-		config.dbHost.value, config.dbName.value, strconv.FormatBool(config.dbAllowOldPasswords.value))
+	connectStr := fmt.Sprintf("%s:%s@tcp(%s)/%s?allowOldPasswords=%s", config.tsDBUser.value, config.tsDBPass.value,
+		config.tsDBHost.value, config.tsDBName.value, strconv.FormatBool(config.tsDBAllowOldPasswords.value))
 
 	var err error
 	db, err = sql.Open("mysql", connectStr)
@@ -66,7 +52,7 @@ func main() {
 	// initialize AWS session
 	sess = session.Must(session.NewSession())
 	go awsPollForDecisionTasks()
-//	go awsSubmitTestWorkflows()
+	//	go awsSubmitTestWorkflows()
 
 	// Set routes and start server
 	mux := httprouter.New()
