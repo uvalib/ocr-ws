@@ -121,7 +121,9 @@ func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error
 		return nil, errors.New("PID is a component")
 	}
 
-	pages = append(pages, pageInfo{PID: tsPidInfo.Pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
+	// sometimes pid is missing?  just use what we knew it to be:
+	//pages = append(pages, pageInfo{PID: tsPidInfo.Pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
+	pages = append(pages, pageInfo{PID: ocr.req.pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
 
 	return pages, nil
 }

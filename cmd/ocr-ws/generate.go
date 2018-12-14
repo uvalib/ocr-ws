@@ -40,8 +40,6 @@ type ocrInfo struct {
 func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	logger.Printf("%s %s", r.Method, r.RequestURI)
 
-	var err error
-
 	ocr := ocrInfo{}
 
 	// save fields from original request
@@ -75,7 +73,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// See if destination already extsts...
 	ocr.destDir = fmt.Sprintf("%s/%s", config.storageDir.value, ocr.workDir)
 
-	if _, err = os.Stat(ocr.destDir); err == nil {
+	if _, err := os.Stat(ocr.destDir); err == nil {
 		// path already exists; don't start another request, just start
 		// normal completion polling routine
 		logger.Printf("Request already in progress or completed")
@@ -83,11 +81,22 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
-	if ocr.pages, err = tsGetPages(ocr, w); err != nil {
-		logger.Printf("Tracksys API error: [%s]", err.Error())
+	tsPages, tsErr := tsGetPages(ocr, w)
+
+	if tsErr != nil {
+		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Tracksys API error: [%s]", err.Error())
+		fmt.Fprintf(w, "Tracksys API error: [%s]", tsErr.Error())
 		return
+	}
+
+	for _, p := range tsPages {
+		if p.PID == "" {
+			logger.Printf("skipping page with missing pid: %V", p)
+			continue
+		}
+
+		ocr.pages = append(ocr.pages, p)
 	}
 
 	if len(ocr.pages) == 0 {
