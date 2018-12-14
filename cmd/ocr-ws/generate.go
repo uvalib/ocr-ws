@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -88,6 +89,12 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		fmt.Fprintf(w, "Tracksys API error: [%s]", err.Error())
 		return
 	}
+
+	var s []string
+	for _, p := range ocr.pages {
+		s = append(s, p.PID)
+	}
+	logger.Printf("%d pids: [%s]", len(s), strings.Join(s, " "))
 
 	// kick off lengthy OCR generation in a go routine
 	go generateOcr(ocr)
