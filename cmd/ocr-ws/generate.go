@@ -112,6 +112,14 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	}
 	logger.Printf("%d pids: [%s]", len(s), strings.Join(s, " "))
 
+	txt, txtErr := tsGetText(ocr.req.pid)
+	if txtErr != nil {
+		logger.Printf("tsGetText() error: [%s]", txtErr.Error())
+	} else {
+		logger.Printf("text:\n\n%s\n\n", txt)
+		//tsPostText(ocr.req.pid, "blah")
+	}
+
 	// kick off lengthy OCR generation in a go routine
 	go generateOcr(ocr)
 }
