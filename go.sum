@@ -1,11 +1,9 @@
-github.com/aws/aws-sdk-go v1.16.5 h1:NVxzZXIuwX828VcJrpNxxWjur1tlOBISdMdDdHIKHcc=
-github.com/aws/aws-sdk-go v1.16.5/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-lambda-go v1.8.0 h1:YMCzi9FP7MNVVj9AkGpYyaqh/mvFOjhqiDtnNlWtKTg=
+github.com/aws/aws-lambda-go v1.8.0/go.mod h1:zUsUQhAUjYzR8AuduJPCfhBuKWUaDbQiPOG+ouzmE1A=
+github.com/aws/aws-sdk-go v1.16.6 h1:pig/KdfESvIv4gUu1B8nVAJAURxbPCTt6e5u79Nqxqc=
+github.com/aws/aws-sdk-go v1.16.6/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/gammazero/deque v0.0.0-20180920172122-f6adf94963e4 h1:R+19WKQClnfMXS60cP5BmMe1wjZ4u0evY2p2Ar0ZTXo=
-github.com/gammazero/deque v0.0.0-20180920172122-f6adf94963e4/go.mod h1:GeIq9qoE43YdGnDXURnmKTnGg15pQz4mYkXSTChbneI=
-github.com/gammazero/workerpool v0.0.0-20180920155329-48371c973101 h1:6f48SdG6iWh/KZUmd4bRuAPXjddVBCAKiBdgXfzlKl0=
-github.com/gammazero/workerpool v0.0.0-20180920155329-48371c973101/go.mod h1:w9RqFVO2BM3xwWEcAB8Fwp0OviTBBEiRmSBDfbXnd3w=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af h1:pmfjZENx5imkbgOkpRUYLnmbU7UEFbjtDA2hxJ1ichM=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/julienschmidt/httprouter v1.2.0 h1:TDTW5Yz1mjftljbcKqRcrYhd4XeOoI98t+9HbQbYf7g=
