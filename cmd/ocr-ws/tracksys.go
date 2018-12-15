@@ -115,32 +115,32 @@ func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error
 	logger.Printf("OcrHintId          : [%s]", tsPidInfo.OcrHintId)
 	logger.Printf("OcrLanguageHint    : [%s]", tsPidInfo.OcrLanguageHint)
 
-/*
-mysql> select distinct(ocr_language_hint) from metadata where length(ocr_language_hint) = 3;
-+-------------------+
-| ocr_language_hint |
-+-------------------+
-| eng               |
-| fra               |
-| spa               |
-| ara               |
-| deu               |
-| rus               |
-+-------------------+
-6 rows in set (0.00 sec)
+	/*
+	   mysql> select distinct(ocr_language_hint) from metadata where length(ocr_language_hint) = 3;
+	   +-------------------+
+	   | ocr_language_hint |
+	   +-------------------+
+	   | eng               |
+	   | fra               |
+	   | spa               |
+	   | ara               |
+	   | deu               |
+	   | rus               |
+	   +-------------------+
+	   6 rows in set (0.00 sec)
 
-mysql> select * from ocr_hints;
-+----+-----------------+---------------+
-| id | name            | ocr_candidate |
-+----+-----------------+---------------+
-|  1 | Modern Font     |             1 |
-|  2 | Non-Text Image  |             0 |
-|  3 | Handwritten     |             0 |
-|  4 | Illegible       |             0 |
-|  5 | Pre-Modern Font |             0 |
-+----+-----------------+---------------+
-5 rows in set (0.00 sec)
-*/
+	   mysql> select * from ocr_hints;
+	   +----+-----------------+---------------+
+	   | id | name            | ocr_candidate |
+	   +----+-----------------+---------------+
+	   |  1 | Modern Font     |             1 |
+	   |  2 | Non-Text Image  |             0 |
+	   |  3 | Handwritten     |             0 |
+	   |  4 | Illegible       |             0 |
+	   |  5 | Pre-Modern Font |             0 |
+	   +----+-----------------+---------------+
+	   5 rows in set (0.00 sec)
+	*/
 
 	switch {
 	case strings.Contains(tsPidInfo.Type, "metadata"):
@@ -186,8 +186,8 @@ func tsGetText(pid string) (string, error) {
 }
 
 func tsPostText(pid, text string) error {
-	form := url.Values {
-		"text": { text },
+	form := url.Values{
+		"text": {text},
 	}
 
 	url := strings.Replace(config.tsPutFullTextUrlTemplate.value, "{PID}", pid, 1)
