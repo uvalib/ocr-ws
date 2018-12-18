@@ -35,7 +35,6 @@ func main() {
 	// initialize AWS session
 	sess = session.Must(session.NewSession())
 	go awsPollForDecisionTasks()
-	//	go awsSubmitTestWorkflows()
 
 	// Set routes and start server
 	mux := httprouter.New()
