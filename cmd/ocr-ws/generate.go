@@ -5,18 +5,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
-
-type pageInfo struct {
-	PID      string
-	Filename string
-	Title    string
-	txtFile  string
-	lang     string
-}
 
 type ocrRequest struct {
 	pid   string
@@ -27,11 +18,15 @@ type ocrRequest struct {
 }
 
 type ocrInfo struct {
-	req     ocrRequest
+	req     ocrRequest // values from original request
+	ts      *tsPidInfo // values looked up in tracksys
 	unitID  int
+	subDir  string
 	workDir string
-	destDir string
-	pages   []pageInfo
+}
+
+func getWorkDir(subDir string) string {
+	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
 }
 
 /**
@@ -51,12 +46,12 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 	// save info generated from the original request
 	ocr.unitID, _ = strconv.Atoi(ocr.req.unit)
-	ocr.workDir = ocr.req.pid
+	ocr.subDir = ocr.req.pid
 
 	if ocr.unitID > 0 {
 		// if pages from a specific unit are requested, put them
 		// in a unit subdirectory under the metadata pid
-		ocr.workDir = fmt.Sprintf("%s/%d", ocr.req.pid, ocr.unitID)
+		ocr.subDir = fmt.Sprintf("%s/%d", ocr.req.pid, ocr.unitID)
 	}
 
 	if len(ocr.req.pages) > 0 {
@@ -66,22 +61,22 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 			fmt.Fprintf(w, "Missing token")
 			return
 		}
-		ocr.workDir = ocr.req.token
+		ocr.subDir = ocr.req.token
 		logger.Printf("Request for partial OCR including pages: %s", ocr.req.pages)
 	}
 
-	// See if destination already extsts...
-	ocr.destDir = fmt.Sprintf("%s/%s", config.storageDir.value, ocr.workDir)
+	// See if destination already exists...
+	ocr.workDir = getWorkDir(ocr.subDir)
 
-	if _, err := os.Stat(ocr.destDir); err == nil {
+	if _, err := os.Stat(ocr.workDir); err == nil {
 		// path already exists; don't start another request, just start
 		// normal completion polling routine
 		logger.Printf("Request already in progress or completed")
-		monitorProgressAndNotifyResults(ocr.workDir, ocr.req.pid, ocr.req.email)
+		sqlAddEmail(ocr.workDir, ocr.req.email)
 		return
 	}
 
-	tsPages, tsErr := tsGetPages(ocr, w)
+	ts, tsErr := tsGetPidInfo(ocr, w)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -90,41 +85,58 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
-	for _, p := range tsPages {
-		if p.PID == "" {
+	// filter out pages with empty pids
+
+	var pages []tsAPICommonFields
+
+	for _, p := range ts.Pages {
+		if p.Pid == "" {
 			logger.Printf("skipping page with missing pid: %V", p)
 			continue
 		}
 
-		ocr.pages = append(ocr.pages, p)
+		pages = append(pages, p)
 	}
 
-	if len(ocr.pages) == 0 {
+	ts.Pages = pages
+
+	ocr.ts = ts
+
+	// ensure we have something to process
+
+	if len(ocr.ts.Pages) == 0 {
 		logger.Printf("No pages found")
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "No pages found for this PID")
 		return
 	}
 
-	var s []string
-	for _, p := range ocr.pages {
-		s = append(s, p.PID)
+	// debug info
+	n := len(ocr.ts.Pages)
+	logger.Printf("%d pids:", n)
+	for i, p := range ocr.ts.Pages {
+		txt, txtErr := tsGetText(ocr.req.pid)
+		switch {
+		case txtErr != nil:
+			logger.Printf("[%d/%d] [%s] tsGetText() error: [%s]", i+1, n, p.Pid, txtErr.Error())
+		case txt == "":
+			logger.Printf("[%d/%d] [%s] no text", i+1, n, p.Pid)
+		default:
+			logger.Printf("[%d/%d] [%s] text:\n\n%s\n\n", i+1, n, p.Pid, txt)
+			//tsPostText(ocr.req.pid, "blah")
+		}
 	}
-	logger.Printf("%d pids: [%s]", len(s), strings.Join(s, " "))
 
-	txt, txtErr := tsGetText(ocr.req.pid)
-	if txtErr != nil {
-		logger.Printf("tsGetText() error: [%s]", txtErr.Error())
-	} else {
-		logger.Printf("text:\n\n%s\n\n", txt)
-		//tsPostText(ocr.req.pid, "blah")
-	}
+	// create work dir
+	os.MkdirAll(ocr.workDir, 0777)
+
+	sqlAddEmail(ocr.workDir, ocr.req.email)
 
 	// kick off lengthy OCR generation in a go routine
 	go generateOcr(ocr)
 }
 
 func generateOcr(ocr ocrInfo) {
-	logger.Printf("would call awsGenerateOcr()...")
-	//	awsGenerateOcr(ocr)
+	logger.Printf("calling awsGenerateOcr()...")
+	awsGenerateOcr(ocr)
 }
