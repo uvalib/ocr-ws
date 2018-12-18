@@ -30,7 +30,7 @@ type tsAPIPidResponse struct {
 	Type               string             `json:"type,omitempty"`
 	AvailabilityPolicy string             `json:"availability_policy,omitempty"`
 	TextSource         string             `json:"text_source,omitempty"`
-	OcrHintId          string             `json:"ocr_hint_id,omitempty"`
+	OcrHint            string             `json:"ocr_hint,omitempty"`
 	OcrLanguageHint    string             `json:"ocr_language_hint,omitempty"`
 	ClonedFrom         tsAPIPidClonedFrom `json:"cloned_from,omitempty"`
 }
@@ -48,8 +48,15 @@ type tsAPIManifestResponse struct {
 	Files []tsAPIManifestFile
 }
 
-func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
-	url := strings.Replace(config.tsGetManifestUrlTemplate.value, "{PID}", ocr.req.pid, 1)
+// holds pid/page info
+type tsPidInfo struct {
+	tsAPIPidResponse
+	Pages []tsAPICommonFields
+}
+
+func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) ([]tsAPICommonFields, error) {
+	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetManifestTemplate.value)
+	url = strings.Replace(url, "{PID}", ocr.req.pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -75,15 +82,18 @@ func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) (pages []pageInf
 		return nil, errors.New(fmt.Sprintf("Failed to unmarshal manifest response: [%s]", buf))
 	}
 
+	var tsPages []tsAPICommonFields
+
 	for _, p := range tsManifestInfo {
-		pages = append(pages, pageInfo{PID: p.Pid, Filename: p.Filename, Title: p.Title})
+		tsPages = append(tsPages, tsAPICommonFields{Pid: p.Pid, Filename: p.Filename, Title: p.Title})
 	}
 
-	return pages, nil
+	return tsPages, nil
 }
 
-func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error) {
-	url := strings.Replace(config.tsGetPidUrlTemplate.value, "{PID}", ocr.req.pid, 1)
+func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
+	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetPidTemplate.value)
+	url = strings.Replace(url, "{PID}", ocr.req.pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -101,19 +111,19 @@ func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error
 
 	// parse json from body
 
-	var tsPidInfo tsAPIPidResponse
+	var ts tsPidInfo
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	if jErr := json.Unmarshal(buf, &tsPidInfo); jErr != nil {
+	if jErr := json.Unmarshal(buf, &ts); jErr != nil {
 		logger.Printf("Unmarshal() failed: %s", jErr.Error())
 		return nil, errors.New(fmt.Sprintf("Failed to unmarshal pid response: [%s]", buf))
 	}
 
-	logger.Printf("Type               : [%s]", tsPidInfo.Type)
-	logger.Printf("AvailabilityPolicy : [%s]", tsPidInfo.AvailabilityPolicy)
-	logger.Printf("TextSource         : [%s]", tsPidInfo.TextSource)
-	logger.Printf("OcrHintId          : [%s]", tsPidInfo.OcrHintId)
-	logger.Printf("OcrLanguageHint    : [%s]", tsPidInfo.OcrLanguageHint)
+	logger.Printf("Type               : [%s]", ts.Type)
+	logger.Printf("AvailabilityPolicy : [%s]", ts.AvailabilityPolicy)
+	logger.Printf("TextSource         : [%s]", ts.TextSource)
+	logger.Printf("OcrHint            : [%s]", ts.OcrHint)
+	logger.Printf("OcrLanguageHint    : [%s]", ts.OcrLanguageHint)
 
 	/*
 	   mysql> select distinct(ocr_language_hint) from metadata where length(ocr_language_hint) = 3;
@@ -143,22 +153,29 @@ func tsGetPages(ocr ocrInfo, w http.ResponseWriter) (pages []pageInfo, err error
 	*/
 
 	switch {
-	case strings.Contains(tsPidInfo.Type, "metadata"):
-		return tsGetPagesFromManifest(ocr, w)
-	case tsPidInfo.Type == "component":
+	case strings.Contains(ts.Type, "metadata"):
+		var mfErr error
+		ts.Pages, mfErr = tsGetPagesFromManifest(ocr, w)
+		if mfErr != nil {
+			logger.Printf("tsGetPagesFromManifest() failed: [%s]", mfErr.Error())
+			return nil, mfErr
+		}
+		return &ts, nil
+	case ts.Type == "component":
 		return nil, errors.New("PID is a component")
 	}
 
 	// sometimes pid is missing?  just use what we knew it to be:
 	// (seems to be fixed as of 5.22.0, but dev is still on 5.20.1, so we leave this code in for now)
-	//pages = append(pages, pageInfo{PID: tsPidInfo.Pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
-	pages = append(pages, pageInfo{PID: ocr.req.pid, Filename: tsPidInfo.Filename, Title: tsPidInfo.Title})
+	//ts.Pages = append(ts.Pages, tsAPICommonFields{Pid: ts.Pid, Filename: ts.Filename, Title: ts.Title})
+	ts.Pages = append(ts.Pages, tsAPICommonFields{Pid: ocr.req.pid, Filename: ts.Filename, Title: ts.Title})
 
-	return pages, nil
+	return &ts, nil
 }
 
 func tsGetText(pid string) (string, error) {
-	url := strings.Replace(config.tsGetFullTextUrlTemplate.value, "{PID}", pid, 1)
+	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetFullTextTemplate.value)
+	url = strings.Replace(url, "{PID}", pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -190,7 +207,8 @@ func tsPostText(pid, text string) error {
 		"text": {text},
 	}
 
-	url := strings.Replace(config.tsPutFullTextUrlTemplate.value, "{PID}", pid, 1)
+	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiPostFullTextTemplate.value)
+	url = strings.Replace(url, "{PID}", pid, 1)
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
