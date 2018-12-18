@@ -10,28 +10,31 @@ import (
 	"strings"
 )
 
-// fields common to multiple API response structs
-
+// fields common to metadata, master_file, and cloned_from structs
 type tsAPICommonFields struct {
-	Id       int    `json:"id,omitempty"`
-	Pid      string `json:"pid,omitempty"`
-	Title    string `json:"title,omitempty"`
-	Filename string `json:"filename,omitempty"`
+	Id         int    `json:"id,omitempty"`
+	Pid        string `json:"pid,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Title      string `json:"title,omitempty"`
+	Filename   string `json:"filename,omitempty"`
+	TextSource string `json:"text_source,omitempty"`
 }
 
 // /api/pid/:PID response
 
 type tsAPIPidClonedFrom struct {
+	// only uses id/pid/filename
 	tsAPICommonFields
 }
 
 type tsAPIPidResponse struct {
 	tsAPICommonFields
-	Type               string             `json:"type,omitempty"`
+	// in metadata only:
 	AvailabilityPolicy string             `json:"availability_policy,omitempty"`
-	TextSource         string             `json:"text_source,omitempty"`
 	OcrHint            string             `json:"ocr_hint,omitempty"`
 	OcrLanguageHint    string             `json:"ocr_language_hint,omitempty"`
+	// in master_files only:
+	ParentMetadataPid  string             `json:"parent_metadata_pid,omitempty"`
 	ClonedFrom         tsAPIPidClonedFrom `json:"cloned_from,omitempty"`
 }
 
@@ -121,38 +124,16 @@ func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
 
 	logger.Printf("Type               : [%s]", ts.Type)
 	logger.Printf("AvailabilityPolicy : [%s]", ts.AvailabilityPolicy)
+	logger.Printf("ParentMetadataPid  : [%s]", ts.ParentMetadataPid)
 	logger.Printf("TextSource         : [%s]", ts.TextSource)
 	logger.Printf("OcrHint            : [%s]", ts.OcrHint)
 	logger.Printf("OcrLanguageHint    : [%s]", ts.OcrLanguageHint)
 
-	/*
-	   mysql> select distinct(ocr_language_hint) from metadata where length(ocr_language_hint) = 3;
-	   +-------------------+
-	   | ocr_language_hint |
-	   +-------------------+
-	   | eng               |
-	   | fra               |
-	   | spa               |
-	   | ara               |
-	   | deu               |
-	   | rus               |
-	   +-------------------+
-	   6 rows in set (0.00 sec)
-
-	   mysql> select * from ocr_hints;
-	   +----+-----------------+---------------+
-	   | id | name            | ocr_candidate |
-	   +----+-----------------+---------------+
-	   |  1 | Modern Font     |             1 |
-	   |  2 | Non-Text Image  |             0 |
-	   |  3 | Handwritten     |             0 |
-	   |  4 | Illegible       |             0 |
-	   |  5 | Pre-Modern Font |             0 |
-	   +----+-----------------+---------------+
-	   5 rows in set (0.00 sec)
-	*/
-
 	switch {
+	case ts.Type == "master_file":
+		ts.Pages = append(ts.Pages, tsAPICommonFields{Id: ts.Id, Pid: ts.Pid, Type: ts.Type, Filename: ts.Filename, Title: ts.Title, TextSource: ts.TextSource})
+		return &ts, nil
+
 	case strings.Contains(ts.Type, "metadata"):
 		var mfErr error
 		ts.Pages, mfErr = tsGetPagesFromManifest(ocr, w)
@@ -161,16 +142,9 @@ func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
 			return nil, mfErr
 		}
 		return &ts, nil
-	case ts.Type == "component":
-		return nil, errors.New("PID is a component")
 	}
 
-	// sometimes pid is missing?  just use what we knew it to be:
-	// (seems to be fixed as of 5.22.0, but dev is still on 5.20.1, so we leave this code in for now)
-	//ts.Pages = append(ts.Pages, tsAPICommonFields{Pid: ts.Pid, Filename: ts.Filename, Title: ts.Title})
-	ts.Pages = append(ts.Pages, tsAPICommonFields{Pid: ocr.req.pid, Filename: ts.Filename, Title: ts.Title})
-
-	return &ts, nil
+	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Type))
 }
 
 func tsGetText(pid string) (string, error) {
