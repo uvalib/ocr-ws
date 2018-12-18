@@ -23,27 +23,28 @@ type configBoolItem struct {
 }
 
 type configData struct {
-	listenPort               configStringItem
-	storageDir               configStringItem
-	iiifUrlTemplate          configStringItem
-	useHttps                 configBoolItem
-	sslCrt                   configStringItem
-	sslKey                   configStringItem
-	tsGetPidUrlTemplate      configStringItem
-	tsGetManifestUrlTemplate configStringItem
-	tsGetFullTextUrlTemplate configStringItem
-	tsPutFullTextUrlTemplate configStringItem
-	awsAccessKeyId           configStringItem
-	awsSecretAccessKey       configStringItem
-	awsRegion                configStringItem
-	awsSwfDomain             configStringItem
-	awsSwfTaskList           configStringItem
-	awsSwfWorkflowType       configStringItem
-	awsSwfWorkflowVersion    configStringItem
-	awsSwfWorkflowTimeout    configStringItem
-	awsSwfDecisionTimeout    configStringItem
-	awsLambdaFunction        configStringItem
-	awsLambdaRole            configStringItem
+	listenPort                configStringItem
+	storageDir                configStringItem
+	iiifUrlTemplate           configStringItem
+	useHttps                  configBoolItem
+	sslCrt                    configStringItem
+	sslKey                    configStringItem
+	tsApiHost                 configStringItem
+	tsApiGetPidTemplate       configStringItem
+	tsApiGetManifestTemplate  configStringItem
+	tsApiGetFullTextTemplate  configStringItem
+	tsApiPostFullTextTemplate configStringItem
+	awsAccessKeyId            configStringItem
+	awsSecretAccessKey        configStringItem
+	awsRegion                 configStringItem
+	awsSwfDomain              configStringItem
+	awsSwfTaskList            configStringItem
+	awsSwfWorkflowType        configStringItem
+	awsSwfWorkflowVersion     configStringItem
+	awsSwfWorkflowTimeout     configStringItem
+	awsSwfDecisionTimeout     configStringItem
+	awsLambdaFunction         configStringItem
+	awsLambdaRole             configStringItem
 }
 
 var config configData
@@ -51,10 +52,11 @@ var config configData
 func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
-	config.tsGetPidUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_GET_PID_URL_TEMPLATE", desc: "tracksys get pid url template"}}
-	config.tsGetManifestUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_GET_MANIFEST_URL_TEMPLATE", desc: "tracksys get manifest url template"}}
-	config.tsGetFullTextUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_GET_FULLTEXT_URL_TEMPLATE", desc: "tracksys get fulltext url template"}}
-	config.tsPutFullTextUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_PUT_FULLTEXT_URL_TEMPLATE", desc: "tracksys put fulltext url template"}}
+	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
+	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
+	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
+	config.tsApiGetFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_GET_FULLTEXT_TEMPLATE", desc: "tracksys api get fulltext template"}}
+	config.tsApiPostFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_API_POST_FULLTEXT_TEMPLATE", desc: "tracksys api post fulltext template"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
@@ -101,10 +103,11 @@ func getConfigValues() {
 	// get values from the command line first, falling back to environment variables
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
-	flagStringVar(&config.tsGetPidUrlTemplate)
-	flagStringVar(&config.tsGetManifestUrlTemplate)
-	flagStringVar(&config.tsGetFullTextUrlTemplate)
-	flagStringVar(&config.tsPutFullTextUrlTemplate)
+	flagStringVar(&config.tsApiHost)
+	flagStringVar(&config.tsApiGetPidTemplate)
+	flagStringVar(&config.tsApiGetManifestTemplate)
+	flagStringVar(&config.tsApiGetFullTextTemplate)
+	flagStringVar(&config.tsApiPostFullTextTemplate)
 	flagStringVar(&config.iiifUrlTemplate)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
@@ -128,10 +131,11 @@ func getConfigValues() {
 	configOK := true
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
-	configOK = ensureConfigStringSet(&config.tsGetPidUrlTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsGetManifestUrlTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsGetFullTextUrlTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsPutFullTextUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
+	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsApiGetFullTextTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
 	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
@@ -155,25 +159,26 @@ func getConfigValues() {
 		os.Exit(1)
 	}
 
-	logger.Printf("[CONFIG] listenPort               = [%s]", config.listenPort.value)
-	logger.Printf("[CONFIG] storageDir               = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] tsGetPidUrlTemplate      = [%s]", config.tsGetPidUrlTemplate.value)
-	logger.Printf("[CONFIG] tsGetManifestUrlTemplate = [%s]", config.tsGetManifestUrlTemplate.value)
-	logger.Printf("[CONFIG] tsGetFullTextUrlTemplate = [%s]", config.tsGetFullTextUrlTemplate.value)
-	logger.Printf("[CONFIG] tsPutFullTextUrlTemplate = [%s]", config.tsPutFullTextUrlTemplate.value)
-	logger.Printf("[CONFIG] iiifUrlTemplate          = [%s]", config.iiifUrlTemplate.value)
-	logger.Printf("[CONFIG] useHttps                 = [%s]", strconv.FormatBool(config.useHttps.value))
-	logger.Printf("[CONFIG] sslCrt                   = [%s]", config.sslCrt.value)
-	logger.Printf("[CONFIG] sslKey                   = [%s]", config.sslKey.value)
-	logger.Printf("[CONFIG] awsAccessKeyId           = [%s]", config.awsAccessKeyId.value)
-	logger.Printf("[CONFIG] awsSecretAccessKey       = [REDACTED]")
-	logger.Printf("[CONFIG] awsRegion                = [%s]", config.awsRegion.value)
-	logger.Printf("[CONFIG] awsSwfDomain             = [%s]", config.awsSwfDomain.value)
-	logger.Printf("[CONFIG] awsSwfTaskList           = [%s]", config.awsSwfTaskList.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowType       = [%s]", config.awsSwfWorkflowType.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowVersion    = [%s]", config.awsSwfWorkflowVersion.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowTimeout    = [%s]", config.awsSwfWorkflowTimeout.value)
-	logger.Printf("[CONFIG] awsSwfDecisionTimeout    = [%s]", config.awsSwfDecisionTimeout.value)
-	logger.Printf("[CONFIG] awsLambdaFunction        = [%s]", config.awsLambdaFunction.value)
-	logger.Printf("[CONFIG] awsLambdaRole            = [%s]", config.awsLambdaRole.value)
+	logger.Printf("[CONFIG] listenPort                = [%s]", config.listenPort.value)
+	logger.Printf("[CONFIG] storageDir                = [%s]", config.storageDir.value)
+	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
+	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
+	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
+	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
+	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
+	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
+	logger.Printf("[CONFIG] useHttps                  = [%s]", strconv.FormatBool(config.useHttps.value))
+	logger.Printf("[CONFIG] sslCrt                    = [%s]", config.sslCrt.value)
+	logger.Printf("[CONFIG] sslKey                    = [%s]", config.sslKey.value)
+	logger.Printf("[CONFIG] awsAccessKeyId            = [%s]", config.awsAccessKeyId.value)
+	logger.Printf("[CONFIG] awsSecretAccessKey        = [REDACTED]")
+	logger.Printf("[CONFIG] awsRegion                 = [%s]", config.awsRegion.value)
+	logger.Printf("[CONFIG] awsSwfDomain              = [%s]", config.awsSwfDomain.value)
+	logger.Printf("[CONFIG] awsSwfTaskList            = [%s]", config.awsSwfTaskList.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowType        = [%s]", config.awsSwfWorkflowType.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowVersion     = [%s]", config.awsSwfWorkflowVersion.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowTimeout     = [%s]", config.awsSwfWorkflowTimeout.value)
+	logger.Printf("[CONFIG] awsSwfDecisionTimeout     = [%s]", config.awsSwfDecisionTimeout.value)
+	logger.Printf("[CONFIG] awsLambdaFunction         = [%s]", config.awsLambdaFunction.value)
+	logger.Printf("[CONFIG] awsLambdaRole             = [%s]", config.awsLambdaRole.value)
 }
