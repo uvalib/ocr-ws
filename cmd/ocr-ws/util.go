@@ -87,7 +87,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 		emailResults(e, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
 	}
 
-	os.RemoveAll(res.workDir)
+//	os.RemoveAll(res.workDir)
 }
 
 func processOcrFailure(res ocrResultsInfo) {
@@ -102,5 +102,5 @@ func processOcrFailure(res ocrResultsInfo) {
 		emailResults(e, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
 	}
 
-	os.RemoveAll(res.workDir)
+//	os.RemoveAll(res.workDir)
 }
