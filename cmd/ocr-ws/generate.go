@@ -15,6 +15,8 @@ type ocrRequest struct {
 	pages string
 	token string
 	email string
+	force string
+	lang  string
 }
 
 type ocrInfo struct {
@@ -36,9 +38,11 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
 	ocr.req.unit = r.URL.Query().Get("unit")
-	ocr.req.email = r.URL.Query().Get("email")
 	ocr.req.pages = r.URL.Query().Get("pages")
 	ocr.req.token = r.URL.Query().Get("token")
+	ocr.req.email = r.URL.Query().Get("email")
+	ocr.req.force = r.URL.Query().Get("force")
+	ocr.req.lang = r.URL.Query().Get("lang")
 
 	// save info generated from the original request
 	ocr.unitID, _ = strconv.Atoi(ocr.req.unit)
@@ -94,7 +98,6 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 		pages = append(pages, p)
 
-		logger.Printf("[%s] => TextSource: [%s]", p.Pid, p.TextSource)
 		if p.TextSource == "" {
 			allTextExists = false
 		}
@@ -115,6 +118,23 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 	// create work dir now (required for adding email to requestor list)
 	os.MkdirAll(ocr.workDir, 0777)
+
+	// check if forcing ocr
+
+	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
+		if ocr.req.lang != "" {
+			ocr.ts.OcrLanguageHint = ocr.req.lang
+			sqlAddEmail(ocr.workDir, ocr.req.email)
+			awsGenerateOcr(ocr)
+			fmt.Fprintf(w, "SUCCESS")
+			return
+		} else {
+			logger.Printf("force was true, but no language supplied")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "No language was supplied")
+			return
+		}
+	}
 
 	// check if ocr/transcription already exists; if so, just email now
 
