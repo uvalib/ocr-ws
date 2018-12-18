@@ -176,5 +176,8 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// perform ocr
 
 	sqlAddEmail(ocr.workDir, ocr.req.email)
+
 	awsGenerateOcr(ocr)
+
+	fmt.Fprintf(w, "SUCCESS")
 }
