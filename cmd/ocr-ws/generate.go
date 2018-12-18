@@ -25,10 +25,6 @@ type ocrInfo struct {
 	workDir string
 }
 
-func getWorkDir(subDir string) string {
-	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
-}
-
 /**
  * Handle a request for OCR of page images
  */

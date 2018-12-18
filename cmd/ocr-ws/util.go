@@ -7,6 +7,10 @@ import (
 	"os"
 )
 
+func getWorkDir(subDir string) string {
+	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
+}
+
 func writeFileWithContents(filename, contents string) error {
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
 
