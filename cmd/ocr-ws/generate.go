@@ -64,11 +64,11 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// See if destination already exists...
 	ocr.workDir = getWorkDir(ocr.subDir)
 
-	if _, err := os.Stat(ocr.workDir); err == nil {
-		// path already exists; don't start another request, just start
-		// normal completion polling routine
+	if _, err := os.Stat(sqlFileName(ocr.workDir)); err == nil {
+		// request database already exists; don't start another request, just add email to requestor list
 		logger.Printf("Request already in progress or completed")
 		sqlAddEmail(ocr.workDir, ocr.req.email)
+		fmt.Fprintf(w, "SUCCESS")
 		return
 	}
 
@@ -84,6 +84,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// filter out pages with empty pids
 
 	var pages []tsAPICommonFields
+	allTextExists := true
 
 	for _, p := range ts.Pages {
 		if p.Pid == "" {
@@ -92,6 +93,11 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		}
 
 		pages = append(pages, p)
+
+		logger.Printf("[%s] => TextSource: [%s]", p.Pid, p.TextSource)
+		if p.TextSource == "" {
+			allTextExists = false
+		}
 	}
 
 	ts.Pages = pages
@@ -107,11 +113,55 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		return
 	}
 
+	// create work dir now (required for adding email to requestor list)
+	os.MkdirAll(ocr.workDir, 0777)
+
+	// check if ocr/transcription already exists; if so, just email now
+
+	if allTextExists == true {
+		logger.Printf("OCR/transcription already exists; emailing now")
+
+		sqlAddEmail(ocr.workDir, ocr.req.email)
+
+		res := ocrResultsInfo{}
+
+		res.pid = ocr.req.pid
+		res.workDir = ocr.workDir
+
+		for _, p := range ocr.ts.Pages {
+			txt, txtErr := tsGetText(p.Pid)
+			if txtErr != nil {
+				logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Error retrieving page text")
+				res.details = "Error retrieving text for one or more pages"
+				processOcrFailure(res)
+				return
+			}
+
+			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, text: txt})
+		}
+
+		processOcrSuccess(res)
+
+		fmt.Fprintf(w, "SUCCESS")
+		return
+	}
+
+	// check if this is ocr-able
+
+	if ocr.ts.OcrHint != "" && ocr.ts.OcrHint != "Modern Font" && ocr.ts.OcrHint != "Regular Font" {
+		logger.Printf("Cannot OCR: [%s]", ocr.ts.OcrHint)
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Cannot perform OCR on this PID")
+		return
+	}
+
 	// debug info
 	n := len(ocr.ts.Pages)
 	logger.Printf("%d pids:", n)
 	for i, p := range ocr.ts.Pages {
-		txt, txtErr := tsGetText(ocr.req.pid)
+		txt, txtErr := tsGetText(p.Pid)
 		switch {
 		case txtErr != nil:
 			logger.Printf("[%d/%d] [%s] tsGetText() error: [%s]", i+1, n, p.Pid, txtErr.Error())
@@ -123,16 +173,8 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		}
 	}
 
-	// create work dir
-	os.MkdirAll(ocr.workDir, 0777)
+	// perform ocr
 
 	sqlAddEmail(ocr.workDir, ocr.req.email)
-
-	// kick off lengthy OCR generation in a go routine
-	go generateOcr(ocr)
-}
-
-func generateOcr(ocr ocrInfo) {
-	logger.Printf("calling awsGenerateOcr()...")
 	awsGenerateOcr(ocr)
 }
