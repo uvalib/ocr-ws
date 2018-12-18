@@ -30,10 +30,11 @@ func writeFileWithContents(filename, contents string) error {
 }
 
 func appendStringIfMissing(slice []string, str string) []string {
-    for _, s := range slice {
-        if s == str {
-            return slice
-        }
-    }
-    return append(slice, str)
+	for _, s := range slice {
+		if s == str {
+			return slice
+		}
+	}
+
+	return append(slice, str)
 }

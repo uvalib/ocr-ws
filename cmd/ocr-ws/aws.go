@@ -31,9 +31,9 @@ type ocrPageInfo struct {
 }
 
 type workflowRequest struct {
-	Pid   string `json:"pid,omitempty"`
-	Path  string `json:"path,omitempty"`
-	Lang  string `json:"lang,omitempty"`
+	Pid   string        `json:"pid,omitempty"`
+	Path  string        `json:"path,omitempty"`
+	Lang  string        `json:"lang,omitempty"`
 	Pages []ocrPageInfo `json:"pages,omitempty"`
 }
 
@@ -405,7 +405,7 @@ func awsSubmitWorkflow(req workflowRequest) error {
 
 func awsSubmitTestWorkflows() {
 	req := workflowRequest{
-		Pid: "test:123",
+		Pid:  "test:123",
 		Path: "test:123",
 		Lang: "eng",
 		Pages: []ocrPageInfo{
@@ -431,7 +431,7 @@ func awsSubmitTestWorkflows() {
 		time.Sleep(time.Duration(s) * time.Second)
 
 		req := workflowRequest{
-			Pid: "test:123",
+			Pid:  "test:123",
 			Path: "test:123",
 			Lang: "eng",
 			Pages: []ocrPageInfo{
