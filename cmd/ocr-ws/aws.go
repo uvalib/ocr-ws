@@ -27,20 +27,24 @@ type decisionInfo struct {
 
 // json for inter-workflow communication
 type ocrPageInfo struct {
-	Lang string `json:"lang,omitempty"`
-	Pid  string `json:"pid,omitempty"`
+	Pid string `json:"pid,omitempty"`
 }
 
 type workflowRequest struct {
+	Pid   string `json:"pid,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Lang  string `json:"lang,omitempty"`
 	Pages []ocrPageInfo `json:"pages,omitempty"`
 }
 
 type lambdaRequest struct {
+	Pid  string `json:"pid,omitempty"`
 	Lang string `json:"lang,omitempty"`
 	Url  string `json:"url,omitempty"`
 }
 
 type lambdaResponse struct {
+	Pid  string `json:"pid,omitempty`
 	Text string `json:"text,omitempty`
 }
 
@@ -114,9 +118,58 @@ func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent
 }
 
 func awsFinalizeResults(info decisionInfo) {
+	workDir := getWorkDir(info.req.Path)
+
+	ocrAllText := ""
+	ocrAllFile := fmt.Sprintf("%s/ocr.txt", workDir)
+
 	for i, e := range info.ocrResults {
-		logger.Printf("ocrResult[%d]: %s\n%s\n", i, *e.EventType, *e.LambdaFunctionCompletedEventAttributes.Result)
+		// lambda result is json embedded within a json string value; must unmarshal twice
+		var tmp string
+
+		if jErr := json.Unmarshal([]byte(*e.LambdaFunctionCompletedEventAttributes.Result), &tmp); jErr != nil {
+			logger.Printf("Unmarshal() failed [finalize intermediate]: %s", jErr.Error())
+			continue
+		}
+
+		res := lambdaResponse{}
+
+		if jErr := json.Unmarshal([]byte(tmp), &res); jErr != nil {
+			logger.Printf("Unmarshal() failed [finalize final]: %s", jErr.Error())
+			continue
+		}
+
+		logger.Printf("ocrResult[%d]: PID: [%s]  Text:\n\n%s\n\n", i, res.Pid, res.Text)
+
+		// save to one file
+		ocrOneFile := fmt.Sprintf("%s/%s.txt", workDir, res.Pid)
+		writeFileWithContents(ocrOneFile, res.Text)
+
+		ocrAllText = fmt.Sprintf("%s\n\n%s\n", ocrAllText, res.Text)
+
+		// post to tracksys
+		//func tsPostText(pid, text string)
 	}
+
+	// save to all file
+	if err := writeFileWithContents(ocrAllFile, ocrAllText); err != nil {
+		logger.Printf("error creating results attachment file: [%s]", err.Error())
+		return
+	}
+
+	emails, err := sqlGetEmails(workDir)
+
+	if err != nil {
+		logger.Printf("error retrieving email addresses: [%s]", err.Error())
+		return
+	}
+
+	for _, e := range emails {
+		emailResults(e, fmt.Sprintf("OCR Results for %s", info.req.Pid), "OCR results are attached.", ocrAllFile)
+	}
+
+	// remove working dir?
+	//os.RemoveAll(workDir)
 }
 
 func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
@@ -182,6 +235,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
+			req.Pid = page.Pid
+			req.Lang = info.req.Lang
 			req.Url = strings.Replace(url, "{PID}", page.Pid, 1)
 			input := fmt.Sprintf(`{ "args": "-l eng", "url": "%s" }`, req.Url)
 			decisions = append(decisions, awsScheduleLambdaFunction(input))
@@ -350,13 +405,15 @@ func awsSubmitWorkflow(req workflowRequest) error {
 
 func awsSubmitTestWorkflows() {
 	req := workflowRequest{
+		Pid: "test:123",
+		Path: "test:123",
+		Lang: "eng",
 		Pages: []ocrPageInfo{
-			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555271"},
-			ocrPageInfo{Lang: "huh", Pid: ""},
-			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555272"},
-			ocrPageInfo{Lang: "wat"},
-			ocrPageInfo{Lang: "eng", Pid: "tsm:1808296"},
-			ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555273"},
+			ocrPageInfo{Pid: "uva-lib:2555271"},
+			ocrPageInfo{Pid: ""},
+			ocrPageInfo{Pid: "uva-lib:2555272"},
+			ocrPageInfo{Pid: "tsm:1808296"},
+			ocrPageInfo{Pid: "uva-lib:2555273"},
 		},
 	}
 
@@ -374,11 +431,14 @@ func awsSubmitTestWorkflows() {
 		time.Sleep(time.Duration(s) * time.Second)
 
 		req := workflowRequest{
+			Pid: "test:123",
+			Path: "test:123",
+			Lang: "eng",
 			Pages: []ocrPageInfo{
-				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555271"},
-				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555272"},
-				ocrPageInfo{Lang: "eng", Pid: "tsm:1808296"},
-				ocrPageInfo{Lang: "eng", Pid: "uva-lib:2555273"},
+				ocrPageInfo{Pid: "uva-lib:2555271"},
+				ocrPageInfo{Pid: "uva-lib:2555272"},
+				ocrPageInfo{Pid: "tsm:1808296"},
+				ocrPageInfo{Pid: "uva-lib:2555273"},
 			},
 		}
 
@@ -389,8 +449,12 @@ func awsSubmitTestWorkflows() {
 func awsGenerateOcr(ocr ocrInfo) {
 	req := workflowRequest{}
 
-	for _, page := range ocr.pages {
-		req.Pages = append(req.Pages, ocrPageInfo{Lang: page.lang, Pid: page.PID})
+	req.Pid = ocr.req.pid
+	req.Path = ocr.subDir
+	req.Lang = ocr.ts.OcrLanguageHint
+
+	for _, page := range ocr.ts.Pages {
+		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid})
 	}
 
 	awsSubmitWorkflow(req)
