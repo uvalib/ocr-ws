@@ -105,9 +105,9 @@ func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent
 	// event n seems to always be at index n-1 in the event history, but
 	// in the absence of documentation of this, we check the list to be safe
 
-	for i, e := range events {
+	for _, e := range events {
 		if eventId == *e.EventId {
-			logger.Printf("found event id %d at index %d", eventId, i)
+//			logger.Printf("found event id %d at index %d", eventId, i)
 			return e
 		}
 	}
@@ -170,12 +170,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				}
 			}
 			info.req.Pages = pages
-			logger.Printf("input	  = [%s] (%d pids)", info.input, len(info.req.Pages))
+//			logger.Printf("input	  = [%s] (%d pids)", info.input, len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
 		if t == "LambdaFunctionCompleted" {
-			logger.Printf("lambda completed")
+//			logger.Printf("lambda completed")
 			info.ocrResults = append(info.ocrResults, e)
 		}
 
@@ -215,6 +215,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// start of workflow
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
 	case lastEventType == "WorkflowExecutionStarted":
+		logger.Printf("input = [%s] (%d pids)", info.input, len(info.req.Pages))
+
 		url := config.iiifUrlTemplate.value
 
 		for _, page := range info.req.Pages {
@@ -222,7 +224,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Pid = page.Pid
 			req.Lang = info.req.Lang
 			req.Url = strings.Replace(url, "{PID}", page.Pid, 1)
-			input := fmt.Sprintf(`{ "args": "-l eng", "url": "%s" }`, req.Url)
+			input := fmt.Sprintf(`{ "args": "-l %s", "url": "%s" }`, req.Lang, req.Url)
 			decisions = append(decisions, awsScheduleLambdaFunction(input))
 		}
 
@@ -273,13 +275,16 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	}
 
 	// quick check to ensure all decisions made appear valid
-	for _, d := range decisions {
+	for i, d := range decisions {
 		if err := d.Validate(); err != nil {
 			logger.Printf("decision validation error: [%s]", err.Error())
 			return
 		}
 
-		logger.Printf("decision: [%s]", *d.DecisionType)
+		// just show first one... multiples will always be lambdas
+		if i == 0 {
+			logger.Printf("decision: [%s]", *d.DecisionType)
+		}
 	}
 
 	respParams := (&swf.RespondDecisionTaskCompletedInput{}).
@@ -323,7 +328,7 @@ func awsPollForDecisionTasks() {
 
 				if info.taskToken == "" && page.TaskToken != nil {
 					info.taskToken = *page.TaskToken
-					logger.Printf("TaskToken  = [%s]", info.taskToken)
+//					logger.Printf("TaskToken  = [%s]", info.taskToken)
 				}
 
 				if info.workflowId == "" && page.WorkflowExecution != nil {
@@ -359,7 +364,7 @@ func awsSubmitWorkflow(req workflowRequest) error {
 	input, jsonErr := json.Marshal(req)
 	if jsonErr != nil {
 		logger.Printf("JSON marshal failed: [%s]", jsonErr.Error())
-		return errors.New("Failed to encoding workflow request")
+		return errors.New("Failed to encode workflow request")
 	}
 
 	startParams := (&swf.StartWorkflowExecutionInput{}).
