@@ -107,7 +107,7 @@ func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent
 
 	for _, e := range events {
 		if eventId == *e.EventId {
-//			logger.Printf("found event id %d at index %d", eventId, i)
+			//logger.Printf("found event id %d at index %d", eventId, i)
 			return e
 		}
 	}
@@ -170,12 +170,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				}
 			}
 			info.req.Pages = pages
-//			logger.Printf("input	  = [%s] (%d pids)", info.input, len(info.req.Pages))
+			//logger.Printf("input	  = [%s] (%d pids)", info.input, len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
 		if t == "LambdaFunctionCompleted" {
-//			logger.Printf("lambda completed")
+			//logger.Printf("lambda completed")
 			info.ocrResults = append(info.ocrResults, e)
 		}
 
@@ -328,7 +328,7 @@ func awsPollForDecisionTasks() {
 
 				if info.taskToken == "" && page.TaskToken != nil {
 					info.taskToken = *page.TaskToken
-//					logger.Printf("TaskToken  = [%s]", info.taskToken)
+					//logger.Printf("TaskToken  = [%s]", info.taskToken)
 				}
 
 				if info.workflowId == "" && page.WorkflowExecution != nil {

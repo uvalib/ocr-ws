@@ -30,12 +30,12 @@ type tsAPIPidClonedFrom struct {
 type tsAPIPidResponse struct {
 	tsAPICommonFields
 	// in metadata only:
-	AvailabilityPolicy string             `json:"availability_policy,omitempty"`
-	OcrHint            string             `json:"ocr_hint,omitempty"`
-	OcrLanguageHint    string             `json:"ocr_language_hint,omitempty"`
+	AvailabilityPolicy string `json:"availability_policy,omitempty"`
+	OcrHint            string `json:"ocr_hint,omitempty"`
+	OcrLanguageHint    string `json:"ocr_language_hint,omitempty"`
 	// in master_files only:
-	ParentMetadataPid  string             `json:"parent_metadata_pid,omitempty"`
-	ClonedFrom         tsAPIPidClonedFrom `json:"cloned_from,omitempty"`
+	ParentMetadataPid string             `json:"parent_metadata_pid,omitempty"`
+	ClonedFrom        tsAPIPidClonedFrom `json:"cloned_from,omitempty"`
 }
 
 // /api/manifest/:PID response

@@ -8,15 +8,15 @@ import (
 )
 
 type ocrPidInfo struct {
-	pid string // page pid
+	pid  string // page pid
 	text string
 }
 
 type ocrResultsInfo struct {
-	pid string // request pid
+	pid     string // request pid
 	details string
 	workDir string
-	pages []ocrPidInfo
+	pages   []ocrPidInfo
 }
 
 func getWorkDir(subDir string) string {
@@ -87,7 +87,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 		emailResults(e, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
 	}
 
-//	os.RemoveAll(res.workDir)
+	//os.RemoveAll(res.workDir)
 }
 
 func processOcrFailure(res ocrResultsInfo) {
@@ -102,5 +102,5 @@ func processOcrFailure(res ocrResultsInfo) {
 		emailResults(e, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
 	}
 
-//	os.RemoveAll(res.workDir)
+	//os.RemoveAll(res.workDir)
 }

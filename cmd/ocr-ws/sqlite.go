@@ -16,7 +16,7 @@ func sqlFileName(path string) string {
 func sqlOpenDB(path string) (*sql.DB, error) {
 	dbFile := sqlFileName(path)
 
-//	logger.Printf("[sql] using db file: [%s]", dbFile)
+	//logger.Printf("[sql] using db file: [%s]", dbFile)
 
 	return sql.Open("sqlite3", dbFile)
 }
