@@ -25,7 +25,7 @@ GOFLAGS_darwin =
 #GOENV_linux = CGO_ENABLED=0
 #GOFLAGS_linux = -installsuffix cgo
 GOENV_linux = 
-GOFLAGS_linux = 
+GOFLAGS_linux = --ldflags '-extldflags "-static"'
 
 # extra flags
 GOENV_EXTRA = GOARCH=amd64
