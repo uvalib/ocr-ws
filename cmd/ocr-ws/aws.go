@@ -156,6 +156,8 @@ func awsFinalizeFailure(info decisionInfo, details string) {
 }
 
 func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
+	workflowHalted := false
+
 	for _, e := range info.allEvents {
 		t := *e.EventType
 
@@ -179,6 +181,11 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			info.ocrResults = append(info.ocrResults, e)
 		}
 
+		// set a flag if any workflow execution event failed (start, complete, fail)
+		if strings.Contains(t, "WorkflowExecutionFailed") {
+			workflowHalted = true
+		}
+
 		// from here on out, only consider recent events (events that occurred since
 		// since the last time a decision task for this workflow was processed)
 		if *e.EventId <= info.lastEventId {
@@ -193,9 +200,14 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		info.recentEvents = append(info.recentEvents, e)
 	}
 
+	if workflowHalted {
+		logger.Printf("WORKFLOW WAS PREVIOUSLY HALTED")
+	}
+
 	logger.Printf("lambdas completed: %d / %d", len(info.ocrResults), len(info.req.Pages))
 
-	lastEventType := *info.recentEvents[len(info.recentEvents)-1].EventType
+	lastEvent:= info.recentEvents[len(info.recentEvents)-1]
+	lastEventType := *lastEvent.EventType
 	logger.Printf("last event type: [%s]", lastEventType)
 
 	// we can now make decisions about the workflow:
@@ -209,7 +221,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// completion condition (failure): no pids found in the input string
 	// decision: fail the workflow
 	case len(info.req.Pages) == 0:
-		decisions = append(decisions, awsFailWorkflowExecution("failure", "No PIDs to process"))
+		decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "No PIDs to process"))
 		go awsFinalizeFailure(info, "No PIDs to process")
 
 	// start of workflow
@@ -231,7 +243,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// completion condition (success): number of successful lambda executions = number of pids
 	// decision: complete the workflow
 	case len(info.ocrResults) == len(info.req.Pages):
-		decisions = append(decisions, awsCompleteWorkflowExecution("success"))
+		decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("success"))
 		go awsFinalizeSuccess(info)
 
 	// middle of the workflow -- typically this occurs when lambdas complete/fail/timeout
@@ -240,30 +252,82 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// NOTE: there is no workflow failure condition for lambdas that fail/timeout, we simply
 	// keep retrying them until the workflow itself times out.
 	default:
+		var uniqueEventTypes []string
+		for _, e := range info.recentEvents {
+			uniqueEventTypes = appendStringIfMissing(uniqueEventTypes, *e.EventType)
+		}
+		logger.Printf("unique recent events: [%s]", strings.Join(uniqueEventTypes, ", "))
+
 		for _, e := range info.recentEvents {
 			t := *e.EventType
 
 			var rerunInput string
 
+			// attempt to start the workflow failed: ???
+			// decision(s): ???
+			if t == "WorkflowExecutionFailed" {
+				a := e.WorkflowExecutionFailedEventAttributes
+				logger.Printf("start workflow execution failed (%s) - (%s)", *a.Reason, *a.Details)
+				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution failed"))
+				break
+			}
+
+			// attempt to complete the workflow failed: ???
+			// decision(s): ???
+			if t == "CompleteWorkflowExecutionFailed" {
+				a := e.CompleteWorkflowExecutionFailedEventAttributes
+				logger.Printf("complete workflow execution failed (%s)", *a.Cause)
+				decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
+				break
+			}
+
+			// attempt to fail the workflow failed: ???
+			// decision(s): ???
+			if t == "FailWorkflowExecutionFailed" {
+				a := e.FailWorkflowExecutionFailedEventAttributes
+				logger.Printf("fail workflow execution failed (%s)", *a.Cause)
+				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("FAILURE", "fail workflow execution failed"))
+				break
+			}
+
 			// if this a recently failed lambda execution, determine what to do with it
 			if t == "LambdaFunctionFailed" {
-				logger.Printf("lambda failed (%s)", *e.LambdaFunctionFailedEventAttributes.Reason)
+				a := e.LambdaFunctionFailedEventAttributes
+				reason := *a.Reason
+
 				details := lambdaFailureDetails{}
-				json.Unmarshal([]byte(*e.LambdaFunctionFailedEventAttributes.Details), &details)
+				json.Unmarshal([]byte(*a.Details), &details)
 
-				logger.Printf("lambda failed: [%s] / [%s]", details.ErrorType, details.ErrorMessage)
+				logger.Printf("lambda failed: (%s) : [%s] / [%s]", reason, details.ErrorType, details.ErrorMessage)
 
-				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
-				go awsFinalizeFailure(info, "One or more pages failed to OCR")
-				break
-				//origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionFailedEventAttributes.ScheduledEventId)
-				//rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				// just rerun anything for now
+				switch {
+				case reason == "HandledError":
+					// could be 503 error on IIIF server due to load we put on it
+					logger.Printf("handled error")
+
+				case reason == "TooManyRequestsException":
+					logger.Printf("too many requests")
+//					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "too many lambdas not yet handled"))
+//					break
+
+				default:
+					logger.Printf("some other error")
+				}
+
+				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+
+//				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
+//				go awsFinalizeFailure(info, "One or more pages failed to OCR")
+//				break
 			}
 
 			// if this a recently timed out lambda execution, rerun it
 			if t == "LambdaFunctionTimedOut" {
-				logger.Printf("lambda timed out (%s)", *e.LambdaFunctionTimedOutEventAttributes.TimeoutType)
-				origEvent := awsEventWithId(info.allEvents, *e.LambdaFunctionTimedOutEventAttributes.ScheduledEventId)
+				a := e.LambdaFunctionTimedOutEventAttributes
+				logger.Printf("lambda timed out (%s)", *a.TimeoutType)
+				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
 				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
