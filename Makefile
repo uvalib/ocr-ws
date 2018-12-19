@@ -22,8 +22,10 @@ GOENV_darwin =
 GOFLAGS_darwin = 
 
 # linux-specific definitions
-GOENV_linux = CGO_ENABLED=0
-GOFLAGS_linux = -installsuffix cgo
+#GOENV_linux = CGO_ENABLED=0
+#GOFLAGS_linux = -installsuffix cgo
+GOENV_linux = 
+GOFLAGS_linux = 
 
 # extra flags
 GOENV_EXTRA = GOARCH=amd64
