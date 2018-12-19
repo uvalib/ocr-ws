@@ -125,7 +125,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		if ocr.req.lang != "" {
 			ocr.ts.OcrLanguageHint = ocr.req.lang
 			sqlAddEmail(ocr.workDir, ocr.req.email)
-			awsGenerateOcr(ocr)
+			generateOcr(ocr)
 			fmt.Fprintf(w, "SUCCESS")
 			return
 		} else {
@@ -197,7 +197,11 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 	sqlAddEmail(ocr.workDir, ocr.req.email)
 
-	awsGenerateOcr(ocr)
+	generateOcr(ocr)
 
 	fmt.Fprintf(w, "SUCCESS")
+}
+
+func generateOcr(ocr ocrInfo) {
+	awsGenerateOcr(ocr)
 }
