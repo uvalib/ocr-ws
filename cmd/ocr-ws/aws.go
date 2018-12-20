@@ -240,7 +240,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req := lambdaRequest{}
 			req.Pid = page.Pid
 			req.Lang = info.req.Lang
-			req.Args = fmt.Sprintf(`-l "%s" -p "%s"`, req.Lang, req.Pid)
+			req.Args = fmt.Sprintf(`-l %s -p %s`, req.Lang, req.Pid)
 			req.File = getS3Filename(page.Filename)
 
 			input, jsonErr := json.Marshal(req)
