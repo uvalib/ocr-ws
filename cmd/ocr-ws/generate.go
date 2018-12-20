@@ -58,7 +58,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		if len(ocr.req.token) == 0 {
 			logger.Printf("Request for partial OCR is missing a token")
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Missing token")
+			fmt.Fprintf(w, "ERROR: Missing token")
 			return
 		}
 		ocr.subDir = ocr.req.token
@@ -72,7 +72,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		// request database already exists; don't start another request, just add email to requestor list
 		logger.Printf("Request already in progress or completed")
 		sqlAddEmail(ocr.workDir, ocr.req.email)
-		fmt.Fprintf(w, "SUCCESS")
+		fmt.Fprintf(w, "OK")
 		return
 	}
 
@@ -81,7 +81,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Tracksys API error: [%s]", tsErr.Error())
+		fmt.Fprintf(w, "ERROR: Could not retrieve PID info")
 		return
 	}
 
@@ -112,7 +112,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	if len(ocr.ts.Pages) == 0 {
 		logger.Printf("No pages found")
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "No pages found for this PID")
+		fmt.Fprintf(w, "ERROR: No pages found for this PID")
 		return
 	}
 
@@ -124,16 +124,15 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
 		if ocr.req.lang != "" {
 			ocr.ts.OcrLanguageHint = ocr.req.lang
-			sqlAddEmail(ocr.workDir, ocr.req.email)
-			generateOcr(ocr)
-			fmt.Fprintf(w, "SUCCESS")
-			return
-		} else {
-			logger.Printf("force was true, but no language supplied")
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "No language was supplied")
-			return
 		}
+
+		sqlAddEmail(ocr.workDir, ocr.req.email)
+
+		fmt.Fprintf(w, "OK")
+
+		go generateOcr(ocr)
+
+		return
 	}
 
 	// check if ocr/transcription already exists; if so, just email now
@@ -153,8 +152,8 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 			if txtErr != nil {
 				logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "Error retrieving page text")
-				res.details = "Error retrieving text for one or more pages"
+				fmt.Fprintf(w, "ERROR: Could not retrieve page text")
+				res.details = "Error encountered while retrieving text for one or more pages"
 				processOcrFailure(res)
 				return
 			}
@@ -164,7 +163,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 		processOcrSuccess(res)
 
-		fmt.Fprintf(w, "SUCCESS")
+		fmt.Fprintf(w, "OK")
 		return
 	}
 
@@ -173,7 +172,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	if ocr.ts.OcrHint != "" && ocr.ts.OcrHint != "Modern Font" && ocr.ts.OcrHint != "Regular Font" {
 		logger.Printf("Cannot OCR: [%s]", ocr.ts.OcrHint)
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Cannot perform OCR on this PID")
+		fmt.Fprintf(w, "ERROR: PID is not in a format conducive to OCR")
 		return
 	}
 
@@ -197,11 +196,21 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 	sqlAddEmail(ocr.workDir, ocr.req.email)
 
-	generateOcr(ocr)
+	fmt.Fprintf(w, "OK")
 
-	fmt.Fprintf(w, "SUCCESS")
+	go generateOcr(ocr)
 }
 
 func generateOcr(ocr ocrInfo) {
-	awsGenerateOcr(ocr)
+	if err := awsGenerateOcr(ocr); err != nil {
+		logger.Printf("generateOcr() failed: [%s]", err.Error())
+
+		res := ocrResultsInfo{}
+
+		res.pid = ocr.req.pid
+		res.workDir = ocr.workDir
+
+		res.details = "Error encountered while starting the OCR process"
+		processOcrFailure(res)
+	}
 }
