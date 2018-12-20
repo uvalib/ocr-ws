@@ -25,6 +25,7 @@ type configBoolItem struct {
 type configData struct {
 	listenPort                configStringItem
 	storageDir                configStringItem
+	archiveDir                configStringItem
 	iiifUrlTemplate           configStringItem
 	useHttps                  configBoolItem
 	sslCrt                    configStringItem
@@ -45,6 +46,7 @@ type configData struct {
 	awsSwfDecisionTimeout     configStringItem
 	awsLambdaFunction         configStringItem
 	awsLambdaRole             configStringItem
+	awsBucketName             configStringItem
 }
 
 var config configData
@@ -52,6 +54,7 @@ var config configData
 func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
+	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
 	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
 	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
@@ -72,6 +75,7 @@ func init() {
 	config.awsSwfDecisionTimeout = configStringItem{value: "", configItem: configItem{flag: "E", env: "AWS_SWF_DECISION_TIMEOUT", desc: "aws swf decision timeout"}}
 	config.awsLambdaFunction = configStringItem{value: "", configItem: configItem{flag: "F", env: "AWS_LAMBDA_FUNCTION", desc: "aws lambda function"}}
 	config.awsLambdaRole = configStringItem{value: "", configItem: configItem{flag: "L", env: "AWS_LAMBDA_ROLE", desc: "aws lambda role"}}
+	config.awsBucketName = configStringItem{value: "", configItem: configItem{flag: "B", env: "AWS_BUCKET_NAME", desc: "aws bucket name"}}
 }
 
 func getBoolEnv(optEnv string) bool {
@@ -103,6 +107,7 @@ func getConfigValues() {
 	// get values from the command line first, falling back to environment variables
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
+	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.tsApiHost)
 	flagStringVar(&config.tsApiGetPidTemplate)
 	flagStringVar(&config.tsApiGetManifestTemplate)
@@ -123,6 +128,7 @@ func getConfigValues() {
 	flagStringVar(&config.awsSwfDecisionTimeout)
 	flagStringVar(&config.awsLambdaFunction)
 	flagStringVar(&config.awsLambdaRole)
+	flagStringVar(&config.awsBucketName)
 
 	flag.Parse()
 
@@ -131,6 +137,7 @@ func getConfigValues() {
 	configOK := true
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
+	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
@@ -148,6 +155,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.awsSwfDecisionTimeout) && configOK
 	configOK = ensureConfigStringSet(&config.awsLambdaFunction) && configOK
 	configOK = ensureConfigStringSet(&config.awsLambdaRole) && configOK
+	configOK = ensureConfigStringSet(&config.awsBucketName) && configOK
 
 	if config.useHttps.value == true {
 		configOK = ensureConfigStringSet(&config.sslCrt) && configOK
@@ -161,6 +169,7 @@ func getConfigValues() {
 
 	logger.Printf("[CONFIG] listenPort                = [%s]", config.listenPort.value)
 	logger.Printf("[CONFIG] storageDir                = [%s]", config.storageDir.value)
+	logger.Printf("[CONFIG] archiveDir                = [%s]", config.archiveDir.value)
 	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
 	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
@@ -181,4 +190,5 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] awsSwfDecisionTimeout     = [%s]", config.awsSwfDecisionTimeout.value)
 	logger.Printf("[CONFIG] awsLambdaFunction         = [%s]", config.awsLambdaFunction.value)
 	logger.Printf("[CONFIG] awsLambdaRole             = [%s]", config.awsLambdaRole.value)
+	logger.Printf("[CONFIG] awsBucketName             = [%s]", config.awsBucketName.value)
 }
