@@ -45,7 +45,7 @@ type lambdaRequest struct {
 	Lang string `json:"lang,omitempty"`
 	Args string `json:"args,omitempty"`
 	File string `json:"file,omitempty"`
-//	Url  string `json:"url,omitempty"`
+	//Url  string `json:"url,omitempty"`
 }
 
 type lambdaResponse struct {
@@ -213,7 +213,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 	logger.Printf("lambdas completed: %d / %d", len(info.ocrResults), len(info.req.Pages))
 
-	lastEvent:= info.recentEvents[len(info.recentEvents)-1]
+	lastEvent := info.recentEvents[len(info.recentEvents)-1]
 	lastEventType := *lastEvent.EventType
 	logger.Printf("last event type: [%s]", lastEventType)
 
@@ -273,7 +273,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		}
 		logger.Printf("unique recent events: [%s]", strings.Join(uniqueEventTypes, ", "))
 
-		EventsProcessingLoop:
+	EventsProcessingLoop:
 		for _, e := range info.recentEvents {
 			t := *e.EventType
 
@@ -329,8 +329,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 				case reason == "TooManyRequestsException":
 					logger.Printf("too many requests")
-//					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "too many lambdas not yet handled"))
-//					break EventsProcessingLoop
+					//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "too many lambdas not yet handled"))
+					//break EventsProcessingLoop
 
 				default:
 					logger.Printf("some other error")
@@ -339,9 +339,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
 				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 
-//				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
-//				go awsFinalizeFailure(info, "One or more pages failed to OCR")
-//				break EventsProcessingLoop
+				//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
+				//go awsFinalizeFailure(info, "One or more pages failed to OCR")
+				//break EventsProcessingLoop
 			}
 
 			// if this a recently timed out lambda execution, rerun it
