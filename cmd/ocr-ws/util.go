@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
+	"strings"
 )
 
 type ocrPidInfo struct {
@@ -21,6 +23,21 @@ type ocrResultsInfo struct {
 
 func getWorkDir(subDir string) string {
 	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
+}
+
+func getLocalFilename(imgFile string) string {
+	// "000012345_0123.tif" => ("000012345", "0123.tif")
+	parts := strings.Split(imgFile, "_")
+	localFile := fmt.Sprintf("%s/%s/%s", config.archiveDir.value, parts[0], imgFile)
+	return localFile
+}
+
+func getS3Filename(imgFile string) string {
+	localFile := getLocalFilename(imgFile)
+	baseFile := path.Base(localFile)
+	parentDir := path.Base(path.Dir(localFile))
+	s3File := path.Join(parentDir, baseFile)
+	return s3File
 }
 
 func writeFileWithContents(filename, contents string) error {
