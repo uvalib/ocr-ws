@@ -149,7 +149,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 		res.pages = append(res.pages, ocrPidInfo{pid: lr.Pid, text: lr.Text})
 	}
 
-	processOcrSuccess(res)
+	go processOcrSuccess(res)
 }
 
 func awsFinalizeFailure(info decisionInfo, details string) {
@@ -159,7 +159,7 @@ func awsFinalizeFailure(info decisionInfo, details string) {
 	res.details = details
 	res.workDir = getWorkDir(info.req.Path)
 
-	processOcrFailure(res)
+	go processOcrFailure(res)
 }
 
 func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
@@ -229,7 +229,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// decision: fail the workflow
 	case len(info.req.Pages) == 0:
 		decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "No PIDs to process"))
-		go awsFinalizeFailure(info, "No PIDs to process")
+		awsFinalizeFailure(info, "No PIDs to process")
 
 	// start of workflow
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
@@ -247,6 +247,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			if jsonErr != nil {
 				logger.Printf("JSON marshal failed: [%s]", jsonErr.Error())
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda creation failed"))
+				awsFinalizeFailure(info, "OCR generation process initialization failed")
 				break
 			}
 
@@ -259,7 +260,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// decision: complete the workflow
 	case len(info.ocrResults) == len(info.req.Pages):
 		decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("success"))
-		go awsFinalizeSuccess(info)
+		awsFinalizeSuccess(info)
 
 	// middle of the workflow -- typically this occurs when lambdas complete/fail/timeout
 	// decision(s): if lambdas recently failed/timed out, schedule them to be rerun; otherwise
@@ -285,6 +286,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				a := e.WorkflowExecutionFailedEventAttributes
 				logger.Printf("start workflow execution failed (%s) - (%s)", *a.Reason, *a.Details)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution failed"))
+				awsFinalizeFailure(info, "OCR generation process failed")
 				break EventsProcessingLoop
 			}
 
@@ -321,6 +323,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				case reason == "UnhandledError":
 					logger.Printf("unhandled error")
 					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "unhandled lambda error"))
+					awsFinalizeFailure(info, "OCR generation process failed unexpectedly")
 					break EventsProcessingLoop
 
 				case reason == "HandledError":
@@ -329,8 +332,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 				case reason == "TooManyRequestsException":
 					logger.Printf("too many requests")
-					//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "too many lambdas not yet handled"))
-					//break EventsProcessingLoop
 
 				default:
 					logger.Printf("some other error")
@@ -338,10 +339,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
 				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
-
-				//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "one or more pages failed"))
-				//go awsFinalizeFailure(info, "One or more pages failed to OCR")
-				//break EventsProcessingLoop
 			}
 
 			// if this a recently timed out lambda execution, rerun it
