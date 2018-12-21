@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/swf"
 	"github.com/satori/go.uuid"
@@ -30,6 +30,7 @@ type decisionInfo struct {
 // json for inter-workflow communication
 type ocrPageInfo struct {
 	Pid      string `json:"pid,omitempty"`
+	Title    string `json:"title,omitempty"`
 	Filename string `json:"filename,omitempty"`
 }
 
@@ -41,15 +42,14 @@ type workflowRequest struct {
 }
 
 type lambdaRequest struct {
-	Pid  string `json:"pid,omitempty"`
-	Lang string `json:"lang,omitempty"`
-	Args string `json:"args,omitempty"`
-	File string `json:"file,omitempty"`
-	//Url  string `json:"url,omitempty"`
+	File  string `json:"file,omitempty"`  // location of image in S3 bucket
+	Lang  string `json:"lang,omitempty"`  // language to use for ocr
+	Pid   string `json:"pid,omitempty"`   // for tracking
+	Title string `json:"title,omitempty"` // for tracking
+	Count int    `json:"count,omitempty"` // for tracking number of (re-)invocations
 }
 
 type lambdaResponse struct {
-	Pid  string `json:"pid,omitempty`
 	Text string `json:"text,omitempty`
 }
 
@@ -128,28 +128,47 @@ func awsFinalizeSuccess(info decisionInfo) {
 	res.pid = info.req.Pid
 	res.workDir = getWorkDir(info.req.Path)
 
+	var s3Files []string
+
 	for i, e := range info.ocrResults {
 		// lambda result is json embedded within a json string value; must unmarshal twice
-		var tmp string
+		a := e.LambdaFunctionCompletedEventAttributes
 
-		if jErr := json.Unmarshal([]byte(*e.LambdaFunctionCompletedEventAttributes.Result), &tmp); jErr != nil {
-			logger.Printf("Unmarshal() failed [finalize intermediate]: %s", jErr.Error())
+		var input string
+
+		if jErr := json.Unmarshal([]byte(*a.Result), &input); jErr != nil {
+			logger.Printf("Unmarshal() failed [finalize response intermediate]: %s", jErr.Error())
 			continue
 		}
 
-		lr := lambdaResponse{}
+		lambdaRes := lambdaResponse{}
 
-		if jErr := json.Unmarshal([]byte(tmp), &lr); jErr != nil {
-			logger.Printf("Unmarshal() failed [finalize final]: %s", jErr.Error())
+		if jErr := json.Unmarshal([]byte(input), &lambdaRes); jErr != nil {
+			logger.Printf("Unmarshal() failed [finalize response final]: %s", jErr.Error())
 			continue
 		}
 
-		logger.Printf("ocrResult[%d]: PID: [%s]  Text:\n\n%s\n\n", i, lr.Pid, lr.Text)
+		// get pid/title from original request
+		origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+		origInput := *origEvent.LambdaFunctionScheduledEventAttributes.Input
 
-		res.pages = append(res.pages, ocrPidInfo{pid: lr.Pid, text: lr.Text})
+		lambdaReq := lambdaRequest{}
+
+		if jErr := json.Unmarshal([]byte(origInput), &lambdaReq); jErr != nil {
+			logger.Printf("Unmarshal() failed [finalize request]: %s", jErr.Error())
+			continue
+		}
+
+		logger.Printf("ocrResult[%d]: PID: [%s]  File: [%s] i Title: [%s]  Text:\n\n%s\n\n", i, lambdaReq.Pid, lambdaReq.File, lambdaReq.Title, lambdaRes.Text)
+
+		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
+
+		s3Files = append(s3Files, lambdaReq.File)
 	}
 
 	go processOcrSuccess(res)
+
+	awsDeleteImages(s3Files)
 }
 
 func awsFinalizeFailure(info decisionInfo, details string) {
@@ -238,10 +257,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
-			req.Pid = page.Pid
-			req.Lang = info.req.Lang
-			req.Args = fmt.Sprintf(`-l %s -p %s`, req.Lang, req.Pid)
+
 			req.File = getS3Filename(page.Filename)
+			req.Lang = info.req.Lang
+			req.Pid = page.Pid
+			req.Title = page.Title
+			req.Count = 1
 
 			input, jsonErr := json.Marshal(req)
 			if jsonErr != nil {
@@ -278,7 +299,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		for _, e := range info.recentEvents {
 			t := *e.EventType
 
-			var rerunInput string
+			var origInput string
 
 			// attempt to start the workflow failed: ???
 			// decision(s): ???
@@ -338,7 +359,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				}
 
 				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
-				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				origInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
 			// if this a recently timed out lambda execution, rerun it
@@ -346,12 +367,36 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				a := e.LambdaFunctionTimedOutEventAttributes
 				logger.Printf("lambda timed out (%s)", *a.TimeoutType)
 				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
-				rerunInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				origInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
 			}
 
-			if rerunInput != "" {
-				logger.Printf("rerunning lambda with original input: [%s]", rerunInput)
-				decisions = append(decisions, awsScheduleLambdaFunction(rerunInput))
+			if origInput != "" {
+				origReq := lambdaRequest{}
+
+				if jErr := json.Unmarshal([]byte(origInput), &origReq); jErr != nil {
+					logger.Printf("Unmarshal() failed [rerun request]: %s", jErr.Error())
+					continue EventsProcessingLoop
+				}
+
+				// limit reruns to this many
+
+				if origReq.Count >= 3 {
+					logger.Printf("maximum lambda retries exceeded (%d); failing", origReq.Count)
+					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "maximum OCR retries reached for one or more pages"))
+					break EventsProcessingLoop
+				}
+
+				origReq.Count = origReq.Count + 1
+
+				rerunInput, jsonErr := json.Marshal(origReq)
+				if jsonErr != nil {
+					logger.Printf("JSON marshal failed: [%s]", jsonErr.Error())
+					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-creation failed"))
+					break EventsProcessingLoop
+				}
+
+				logger.Printf("rerunning lambda with modified input: [%s]", rerunInput)
+				decisions = append(decisions, awsScheduleLambdaFunction(string(rerunInput)))
 			}
 		}
 	}
@@ -472,18 +517,40 @@ func awsSubmitWorkflow(req workflowRequest) error {
 	return nil
 }
 
+func awsDeleteImage(svc *s3.S3, s3File string) error {
+	logger.Printf("deleting: [%s]", s3File)
+
+	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(config.awsBucketName.value),
+		Key:    aws.String(s3File),
+	})
+
+	return err
+}
+
+func awsDeleteImages(s3Files []string) error {
+	svc := s3.New(sess)
+
+	for _, s3File := range s3Files {
+		if err := awsDeleteImage(svc, s3File); err != nil {
+			logger.Printf("Failed to delete image: [%s]", err.Error())
+		}
+	}
+
+	return nil
+}
+
 func awsUploadImage(uploader *s3manager.Uploader, imgFile string) error {
-	f, err := os.Open(imgFile)
+	localFile := getLocalFilename(imgFile)
+	s3File := getS3Filename(imgFile)
+
+	f, err := os.Open(localFile)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Failed to open image file: [%s]", err.Error()))
 	}
 	defer f.Close()
 
-	baseFile := path.Base(imgFile)
-	parentDir := path.Base(path.Dir(imgFile))
-	s3File := path.Join(parentDir, baseFile)
-
-	logger.Printf("uploading: [%s] => [%s]", imgFile, s3File)
+	logger.Printf("uploading: [%s] => [%s]", localFile, s3File)
 
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(config.awsBucketName.value),
@@ -498,10 +565,7 @@ func awsUploadImages(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
 
 	for _, page := range ocr.ts.Pages {
-		// "000012345_0123.tif" => ("000012345", "0123.tif")
-		bits := strings.Split(page.Filename, "_")
-		imgFile := fmt.Sprintf("%s/%s/%s", config.archiveDir.value, bits[0], page.Filename)
-		if err := awsUploadImage(uploader, imgFile); err != nil {
+		if err := awsUploadImage(uploader, page.Filename); err != nil {
 			return errors.New(fmt.Sprintf("Failed to upload image: [%s]", err.Error()))
 		}
 	}
@@ -521,7 +585,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Lang = ocr.ts.OcrLanguageHint
 
 	for _, page := range ocr.ts.Pages {
-		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Filename: page.Filename})
+		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
 	}
 
 	if err := awsSubmitWorkflow(req); err != nil {
