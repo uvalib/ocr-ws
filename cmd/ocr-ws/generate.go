@@ -158,7 +158,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 				return
 			}
 
-			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, text: txt})
+			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, title: p.Title, text: txt})
 		}
 
 		processOcrSuccess(res)
@@ -209,8 +209,8 @@ func generateOcr(ocr ocrInfo) {
 
 		res.pid = ocr.req.pid
 		res.workDir = ocr.workDir
-
 		res.details = "Error encountered while starting the OCR process"
+
 		processOcrFailure(res)
 	}
 }
