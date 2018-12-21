@@ -122,7 +122,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 	res.pid = info.req.Pid
 	res.workDir = getWorkDir(info.req.Path)
 
-	for i, e := range info.ocrResults {
+	for _, e := range info.ocrResults {
 		// lambda result is json embedded within a json string value; must unmarshal twice
 		a := e.LambdaFunctionCompletedEventAttributes
 
