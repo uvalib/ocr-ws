@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/satori/go.uuid"
 )
 
 type ocrPidInfo struct {
@@ -33,11 +35,11 @@ func getLocalFilename(imgFile string) string {
 	return localFile
 }
 
-func getS3Filename(imgFile string) string {
+func getS3Filename(reqID, imgFile string) string {
 	localFile := getLocalFilename(imgFile)
 	baseFile := path.Base(localFile)
 	parentDir := path.Base(path.Dir(localFile))
-	s3File := path.Join(parentDir, baseFile)
+	s3File := path.Join(reqID, parentDir, baseFile)
 	return s3File
 }
 
@@ -144,4 +146,10 @@ func maxOf(ints ...int) int {
 	}
 
 	return max
+}
+
+func newUUID() string {
+	u := uuid.Must(uuid.NewV4())
+
+	return u.String()
 }

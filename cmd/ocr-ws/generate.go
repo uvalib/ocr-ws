@@ -25,6 +25,7 @@ type ocrInfo struct {
 	unitID  int
 	subDir  string
 	workDir string
+	reqID   string
 }
 
 /**
@@ -47,6 +48,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 	// save info generated from the original request
 	ocr.unitID, _ = strconv.Atoi(ocr.req.unit)
 	ocr.subDir = ocr.req.pid
+	ocr.reqID = newUUID()
 
 	if ocr.unitID > 0 {
 		// if pages from a specific unit are requested, put them

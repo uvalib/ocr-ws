@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/swf"
-	"github.com/satori/go.uuid"
 )
 
 // holds information we extract from a decision task
@@ -38,6 +37,7 @@ type workflowRequest struct {
 	Pid   string        `json:"pid,omitempty"`
 	Path  string        `json:"path,omitempty"`
 	Lang  string        `json:"lang,omitempty"`
+	ReqID string        `json:"reqid,omitempty"`
 	Pages []ocrPageInfo `json:"pages,omitempty"`
 }
 
@@ -61,12 +61,6 @@ type lambdaFailureDetails struct {
 }
 
 // functions
-
-func newUUID() string {
-	taskUUID := uuid.Must(uuid.NewV4())
-
-	return taskUUID.String()
-}
 
 func awsCompleteWorkflowExecution(result string) *swf.Decision {
 	decision := (&swf.Decision{}).
@@ -128,8 +122,6 @@ func awsFinalizeSuccess(info decisionInfo) {
 	res.pid = info.req.Pid
 	res.workDir = getWorkDir(info.req.Path)
 
-	var s3Files []string
-
 	for i, e := range info.ocrResults {
 		// lambda result is json embedded within a json string value; must unmarshal twice
 		a := e.LambdaFunctionCompletedEventAttributes
@@ -162,13 +154,11 @@ func awsFinalizeSuccess(info decisionInfo) {
 		logger.Printf("ocrResult[%d]: PID: [%s]  File: [%s] i Title: [%s]  Text:\n\n%s\n\n", i, lambdaReq.Pid, lambdaReq.File, lambdaReq.Title, lambdaRes.Text)
 
 		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
-
-		s3Files = append(s3Files, lambdaReq.File)
 	}
 
 	go processOcrSuccess(res)
 
-	awsDeleteImages(s3Files)
+	awsDeleteImages(info.req.ReqID)
 }
 
 func awsFinalizeFailure(info decisionInfo, details string) {
@@ -179,6 +169,8 @@ func awsFinalizeFailure(info decisionInfo, details string) {
 	res.workDir = getWorkDir(info.req.Path)
 
 	go processOcrFailure(res)
+
+	awsDeleteImages(info.req.ReqID)
 }
 
 func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
@@ -258,7 +250,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
 
-			req.File = getS3Filename(page.Filename)
+			req.File = getS3Filename(info.req.ReqID, page.Filename)
 			req.Lang = info.req.Lang
 			req.Pid = page.Pid
 			req.Title = page.Title
@@ -517,32 +509,22 @@ func awsSubmitWorkflow(req workflowRequest) error {
 	return nil
 }
 
-func awsDeleteImage(svc *s3.S3, s3File string) error {
-	logger.Printf("deleting: [%s]", s3File)
+func awsDeleteImages(reqDir string) error {
+	svc := s3.New(sess)
+
+	logger.Printf("deleting: [%s]", reqDir)
 
 	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(config.awsBucketName.value),
-		Key:    aws.String(s3File),
+		Key:    aws.String(reqDir),
 	})
 
 	return err
 }
 
-func awsDeleteImages(s3Files []string) error {
-	svc := s3.New(sess)
-
-	for _, s3File := range s3Files {
-		if err := awsDeleteImage(svc, s3File); err != nil {
-			logger.Printf("Failed to delete image: [%s]", err.Error())
-		}
-	}
-
-	return nil
-}
-
-func awsUploadImage(uploader *s3manager.Uploader, imgFile string) error {
+func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile string) error {
 	localFile := getLocalFilename(imgFile)
-	s3File := getS3Filename(imgFile)
+	s3File := getS3Filename(reqID, imgFile)
 
 	f, err := os.Open(localFile)
 	if err != nil {
@@ -565,7 +547,7 @@ func awsUploadImages(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
 
 	for _, page := range ocr.ts.Pages {
-		if err := awsUploadImage(uploader, page.Filename); err != nil {
+		if err := awsUploadImage(uploader, ocr.reqID, page.Filename); err != nil {
 			return errors.New(fmt.Sprintf("Failed to upload image: [%s]", err.Error()))
 		}
 	}
@@ -583,6 +565,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Pid = ocr.req.pid
 	req.Path = ocr.subDir
 	req.Lang = ocr.ts.OcrLanguageHint
+	req.ReqID = ocr.reqID
 
 	for _, page := range ocr.ts.Pages {
 		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
