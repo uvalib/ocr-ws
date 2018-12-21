@@ -189,8 +189,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 		case txt == "":
 			logger.Printf("[%d/%d] [%s] no text", i+1, n, p.Pid)
 		default:
-			logger.Printf("[%d/%d] [%s] text:\n\n%s\n\n", i+1, n, p.Pid, txt)
-			//tsPostText(ocr.req.pid, "blah")
+			//logger.Printf("[%d/%d] [%s] text:\n\n%s\n\n", i+1, n, p.Pid, txt)
 		}
 	}
 

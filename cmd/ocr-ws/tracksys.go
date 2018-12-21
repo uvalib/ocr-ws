@@ -88,7 +88,11 @@ func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) ([]tsAPICommonFi
 	var tsPages []tsAPICommonFields
 
 	for i, p := range tsManifestInfo {
-		logger.Printf("[page %d]\nPid      : [%s]\nFilename : [%s]\nTitle    : [%s]", i, p.Pid, p.Filename, p.Title)
+		logger.Printf("\t[page %d / %d]", i+1, len(tsManifestInfo))
+		logger.Printf("\t\tPid:       [%s]", p.Pid)
+		logger.Printf("\t\tTitle:     [%s]", p.Title)
+		logger.Printf("\t\tFilename:  [%s]", p.Filename)
+
 		tsPages = append(tsPages, tsAPICommonFields{Pid: p.Pid, Filename: p.Filename, Title: p.Title})
 	}
 
@@ -132,7 +136,11 @@ func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
 
 	switch {
 	case ts.Type == "master_file":
-		logger.Printf("[page 1]\nPid      : [%s]\nFilename : [%s]\nTitle    : [%s]", ts.Pid, ts.Filename, ts.Title)
+		logger.Printf("\t[page 1 / 1]")
+		logger.Printf("\t\tPid:       [%s]", ts.Pid)
+		logger.Printf("\t\tTitle:     [%s]", ts.Title)
+		logger.Printf("\t\tFilename:  [%s]", ts.Filename)
+
 		ts.Pages = append(ts.Pages, tsAPICommonFields{Id: ts.Id, Pid: ts.Pid, Type: ts.Type, Filename: ts.Filename, Title: ts.Title, TextSource: ts.TextSource})
 		return &ts, nil
 
