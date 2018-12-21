@@ -10,8 +10,9 @@ import (
 )
 
 type ocrPidInfo struct {
-	pid  string // page pid
-	text string
+	pid   string // page pid
+	title string
+	text  string
 }
 
 type ocrResultsInfo struct {
@@ -76,12 +77,21 @@ func processOcrSuccess(res ocrResultsInfo) {
 	ocrAllText := ""
 	ocrAllFile := fmt.Sprintf("%s/ocr.txt", res.workDir)
 
-	for _, p := range res.pages {
+	for i, p := range res.pages {
 		// save to one file
 		ocrOneFile := fmt.Sprintf("%s/%s.txt", res.workDir, p.pid)
-		writeFileWithContents(ocrOneFile, p.text)
 
-		ocrAllText = fmt.Sprintf("%s\n\n%s\n", ocrAllText, p.text)
+		headerTitle := fmt.Sprintf("Title: %s", p.title)
+		headerPages := fmt.Sprintf("Page %d of %d", i+1, len(res.pages))
+		headerLength := maxOf(len(headerTitle), len(headerPages))
+		headerBorder := strings.Repeat("=", headerLength)
+		headerText := fmt.Sprintf("%s\n%s\n%s\n%s\n", headerBorder, headerTitle, headerPages, headerBorder)
+
+		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, p.text)
+
+		writeFileWithContents(ocrOneFile, ocrOneText)
+
+		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
 
 		// post to tracksys
 		//func tsPostText(pid, text string)
@@ -90,6 +100,8 @@ func processOcrSuccess(res ocrResultsInfo) {
 	// save to all file
 	if err := writeFileWithContents(ocrAllFile, ocrAllText); err != nil {
 		logger.Printf("error creating results attachment file: [%s]", err.Error())
+		res.details = "OCR generation process finalization failed"
+		processOcrFailure(res)
 		return
 	}
 
@@ -120,4 +132,16 @@ func processOcrFailure(res ocrResultsInfo) {
 	}
 
 	os.RemoveAll(res.workDir)
+}
+
+func maxOf(ints ...int) int {
+	max := ints[0]
+
+	for _, n := range ints {
+		if n > max {
+			max = n
+		}
+	}
+
+	return max
 }
