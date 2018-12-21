@@ -191,6 +191,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			}
 			info.req.Pages = pages
 			//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
+			logger.Printf("[%s] reqid: [%s]  pages: %d", info.workflowId, info.req.ReqID, len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
