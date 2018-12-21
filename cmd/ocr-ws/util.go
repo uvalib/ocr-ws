@@ -79,6 +79,8 @@ func processOcrSuccess(res ocrResultsInfo) {
 	ocrAllText := ""
 	ocrAllFile := fmt.Sprintf("%s/ocr.txt", res.workDir)
 
+	logger.Printf("[%s] processing and posting successful OCR", res.pid)
+
 	for i, p := range res.pages {
 		// save to one file
 		ocrOneFile := fmt.Sprintf("%s/%s.txt", res.workDir, p.pid)
@@ -91,20 +93,23 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, p.text)
 
-		writeFileWithContents(ocrOneFile, ocrOneText)
+		// save to page file
+		if err := writeFileWithContents(ocrOneFile, ocrOneText); err != nil {
+			logger.Printf("[%s] error creating results page file: [%s]", res.pid, err.Error())
+		}
 
 		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
 
 		// post to tracksys
 
 		if err := tsPostText(p.pid, p.text); err != nil {
-			logger.Printf("Tracksys OCR posting failed: [%s]", err.Error())
+			logger.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
 		}
 	}
 
 	// save to all file
 	if err := writeFileWithContents(ocrAllFile, ocrAllText); err != nil {
-		logger.Printf("error creating results attachment file: [%s]", err.Error())
+		logger.Printf("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
 		res.details = "OCR generation process finalization failed"
 		processOcrFailure(res)
 		return
@@ -113,7 +118,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 	emails, err := sqlGetEmails(res.workDir)
 
 	if err != nil {
-		logger.Printf("error retrieving email addresses: [%s]", err.Error())
+		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
 		return
 	}
 
@@ -125,10 +130,12 @@ func processOcrSuccess(res ocrResultsInfo) {
 }
 
 func processOcrFailure(res ocrResultsInfo) {
+	logger.Printf("[%s] processing failed OCR", res.pid)
+
 	emails, err := sqlGetEmails(res.workDir)
 
 	if err != nil {
-		logger.Printf("error retrieving email addresses: [%s]", err.Error())
+		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
 		return
 	}
 
