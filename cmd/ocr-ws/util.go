@@ -96,7 +96,10 @@ func processOcrSuccess(res ocrResultsInfo) {
 		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
 
 		// post to tracksys
-		//func tsPostText(pid, text string)
+
+		if err := tsPostText(p.pid, p.text); err != nil {
+			logger.Printf("Tracksys OCR posting failed: [%s]", err.Error())
+		}
 	}
 
 	// save to all file
