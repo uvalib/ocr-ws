@@ -210,7 +210,7 @@ func tsPostText(pid, text string) error {
 
 	buf, _ := ioutil.ReadAll(res.Body)
 
-	logger.Printf("Posted OCR; response: [%s]", buf)
+	//logger.Printf("Posted OCR; response: [%s]", buf)
 
 	return nil
 }
