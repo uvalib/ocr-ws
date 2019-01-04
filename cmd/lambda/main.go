@@ -67,7 +67,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	}
 
 	//res.Text = fmt.Sprintf("lang: [%s]  bucket: [%s]  key: [%s]  pid: [%s]  title: [%s]  count: [%d]", req.Lang, req.Bucket, req.Key, req.Pid, req.Title, req.Count)
-	res.Text = fmt.Sprintf("imgFile: [%s]  bytes: [%d]\n\nreq:\n\n%v", imgFile, bytes, req)
+	res.Text = fmt.Sprintf("imgFile: [%s]  bytes: [%d]\n\nreq: %+v", imgFile, bytes, req)
 
 	output, jsonErr := json.Marshal(res)
 	if jsonErr != nil {

@@ -94,7 +94,7 @@ func generateHandler(w http.ResponseWriter, r *http.Request, params httprouter.P
 
 	for _, p := range ts.Pages {
 		if p.Pid == "" {
-			logger.Printf("skipping page with missing pid: %v", p)
+			logger.Printf("skipping page with missing pid: %+v", p)
 			continue
 		}
 
