@@ -26,7 +26,7 @@ type decisionInfo struct {
 	ocrResults   []*swf.HistoryEvent
 }
 
-// json for inter-workflow communication
+// json for webservice <-> workflow communication
 type ocrPageInfo struct {
 	Pid      string `json:"pid,omitempty"`
 	Title    string `json:"title,omitempty"`
@@ -34,19 +34,22 @@ type ocrPageInfo struct {
 }
 
 type workflowRequest struct {
-	Pid   string        `json:"pid,omitempty"`
-	Path  string        `json:"path,omitempty"`
-	Lang  string        `json:"lang,omitempty"`
-	ReqID string        `json:"reqid,omitempty"`
-	Pages []ocrPageInfo `json:"pages,omitempty"`
+	Pid    string        `json:"pid,omitempty"`
+	Path   string        `json:"path,omitempty"`
+	Lang   string        `json:"lang,omitempty"`
+	ReqID  string        `json:"reqid,omitempty"`
+	Bucket string        `json:"reqid,omitempty"`
+	Pages  []ocrPageInfo `json:"pages,omitempty"`
 }
 
+// json for workflow <-> lambda communication
 type lambdaRequest struct {
-	File  string `json:"file,omitempty"`  // location of image in S3 bucket
-	Lang  string `json:"lang,omitempty"`  // language to use for ocr
-	Pid   string `json:"pid,omitempty"`   // for tracking
-	Title string `json:"title,omitempty"` // for tracking
-	Count int    `json:"count,omitempty"` // for tracking number of (re-)invocations
+	Lang   string `json:"lang,omitempty"`   // language to use for ocr
+	Bucket string `json:"bucket,omitempty"` // s3 bucket for source image
+	Key    string `json:"key,omitempty"`    // s3 key for source image
+	Pid    string `json:"pid,omitempty"`    // for workflow tracking; unused in lambda
+	Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
+	Count  int    `json:"count,omitempty"`  // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
@@ -251,8 +254,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
 
-			req.File = getS3Filename(info.req.ReqID, page.Filename)
 			req.Lang = info.req.Lang
+			req.Bucket = info.req.Bucket
+			req.Key = getS3Filename(info.req.ReqID, page.Filename)
 			req.Pid = page.Pid
 			req.Title = page.Title
 			req.Count = 1
@@ -573,6 +577,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Path = ocr.subDir
 	req.Lang = ocr.ts.OcrLanguageHint
 	req.ReqID = ocr.reqID
+	req.Bucket = config.awsBucketName.value
 
 	for _, page := range ocr.ts.Pages {
 		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
