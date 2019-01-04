@@ -38,7 +38,7 @@ type workflowRequest struct {
 	Path   string        `json:"path,omitempty"`
 	Lang   string        `json:"lang,omitempty"`
 	ReqID  string        `json:"reqid,omitempty"`
-	Bucket string        `json:"reqid,omitempty"`
+	Bucket string        `json:"bucket,omitempty"`
 	Pages  []ocrPageInfo `json:"pages,omitempty"`
 }
 
