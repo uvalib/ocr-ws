@@ -50,7 +50,7 @@ type lambdaRequest struct {
 }
 
 type lambdaResponse struct {
-	Text string `json:"text,omitempty`
+	Text string `json:"text,omitempty"`
 }
 
 // json for failed lambda error details
