@@ -348,9 +348,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				switch {
 				case reason == "UnhandledError":
 					logger.Printf("[%s] unhandled error", info.workflowId)
-					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "unhandled lambda error"))
-					awsFinalizeFailure(info, "OCR generation process failed unexpectedly")
-					break EventsProcessingLoop
+					//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "unhandled lambda error"))
+					//awsFinalizeFailure(info, "OCR generation process failed unexpectedly")
+					//break EventsProcessingLoop
 
 				case reason == "HandledError":
 					// could be 503 error on IIIF server due to load we put on it
