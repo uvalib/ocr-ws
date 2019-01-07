@@ -256,7 +256,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// start of workflow
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
 	case lastEventType == "WorkflowExecutionStarted":
-		logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
+		//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
+		logger.Printf("[%s] scheduling %d lambdas...", info.workflowId, len(info.req.Pages))
 
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
@@ -276,7 +277,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				break
 			}
 
-			logger.Printf("[%s] lambda json: [%s]", info.workflowId, input)
+			//logger.Printf("[%s] lambda json: [%s]", info.workflowId, input)
 
 			decisions = append(decisions, awsScheduleLambdaFunction(string(input)))
 		}
@@ -407,7 +408,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 	// quick check to ensure all decisions made appear valid
 	if lastEventType == "WorkflowExecutionStarted" {
-		logger.Printf("[%s] decision: [ScheduleLambdaFunction x %d]", len(decisions))
+		logger.Printf("[%s] decision: [ScheduleLambdaFunction x %d]", info.workflowId, len(decisions))
 	}
 
 	for _, d := range decisions {
