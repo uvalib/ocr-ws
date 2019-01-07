@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/swf"
+	"github.com/gammazero/workerpool"
 )
 
 // holds information we extract from a decision task
@@ -570,8 +573,56 @@ func awsUploadImages(ocr ocrInfo) error {
 	return nil
 }
 
+func awsUploadImagesConcurrently(ocr ocrInfo) error {
+	uploader := s3manager.NewUploader(sess)
+
+	workers, err := strconv.Atoi(config.concurrentUploads.value)
+
+	switch {
+	case err != nil:
+		workers = 1
+	case workers == 0:
+		workers = runtime.NumCPU()
+	default:
+		workers = 1
+	}
+
+	logger.Printf("concurrent uploads set to [%s]; starting %d uploads", config.concurrentUploads.value, workers)
+
+	wp := workerpool.New(workers)
+
+	start := time.Now()
+
+	uploadFailed := false
+
+	for i, _ := range ocr.ts.Pages {
+		page := &ocr.ts.Pages[i]
+		wp.Submit(func() {
+			if err := awsUploadImage(uploader, ocr.reqID, page.Filename); err != nil {
+				uploadFailed = true
+				logger.Printf("Failed to upload image: [%s]", err.Error())
+			}
+		})
+	}
+
+	logger.Printf("Waiting for %d uploads to complete...", len(ocr.ts.Pages))
+
+	wp.StopWait()
+
+	if uploadFailed == true {
+		logger.Printf("one or more images failed to upload")
+		return errors.New("One or more images failed to upload")
+	}
+
+	elapsed := time.Since(start).Seconds()
+
+	logger.Printf("%d images uploaded in %0.2f seconds (%0.2f seconds/image)", len(ocr.ts.Pages), elapsed, elapsed/float64(len(ocr.ts.Pages)))
+
+	return nil
+}
+
 func awsGenerateOcr(ocr ocrInfo) error {
-	if err := awsUploadImages(ocr); err != nil {
+	if err := awsUploadImagesConcurrently(ocr); err != nil {
 		return errors.New(fmt.Sprintf("Upload failed: [%s]", err.Error()))
 	}
 
