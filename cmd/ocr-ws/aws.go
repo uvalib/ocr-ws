@@ -406,13 +406,19 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	}
 
 	// quick check to ensure all decisions made appear valid
+	if lastEventType == "WorkflowExecutionStarted" {
+		logger.Printf("[%s] decision: [ScheduleLambdaFunction x %d]", len(decisions))
+	}
+
 	for _, d := range decisions {
 		if err := d.Validate(); err != nil {
 			logger.Printf("[%s] decision validation error: [%s]", info.workflowId, err.Error())
 			return
 		}
 
-		logger.Printf("[%s] decision: [%s]", info.workflowId, *d.DecisionType)
+		if lastEventType != "WorkflowExecutionStarted" {
+			logger.Printf("[%s] decision: [%s]", info.workflowId, *d.DecisionType)
+		}
 	}
 
 	respParams := (&swf.RespondDecisionTaskCompletedInput{}).
@@ -587,7 +593,7 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 		workers = 1
 	}
 
-	logger.Printf("concurrent uploads set to [%s]; starting %d uploads", config.concurrentUploads.value, workers)
+	logger.Printf("concurrent uploads set to [%s]; limiting to %d uploads", config.concurrentUploads.value, workers)
 
 	wp := workerpool.New(workers)
 
