@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -158,6 +159,9 @@ func awsFinalizeSuccess(info decisionInfo) {
 
 		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
 	}
+
+	// sort by pid
+	sort.Slice(res.pages, func(i, j int) bool { return res.pages[i].pid < res.pages[j].pid })
 
 	go processOcrSuccess(res)
 
