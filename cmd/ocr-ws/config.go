@@ -27,6 +27,7 @@ type configData struct {
 	storageDir                configStringItem
 	archiveDir                configStringItem
 	iiifUrlTemplate           configStringItem
+	concurrentUploads         configStringItem
 	useHttps                  configBoolItem
 	sslCrt                    configStringItem
 	sslKey                    configStringItem
@@ -55,15 +56,16 @@ func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
+	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
+	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
+	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
+	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
+	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
 	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
 	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
 	config.tsApiGetFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_GET_FULLTEXT_TEMPLATE", desc: "tracksys api get fulltext template"}}
 	config.tsApiPostFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_API_POST_FULLTEXT_TEMPLATE", desc: "tracksys api post fulltext template"}}
-	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
-	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
-	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
-	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
 	config.awsAccessKeyId = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
 	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
 	config.awsRegion = configStringItem{value: "", configItem: configItem{flag: "R", env: "AWS_REGION", desc: "aws swf domain"}}
@@ -108,15 +110,16 @@ func getConfigValues() {
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.archiveDir)
+	flagStringVar(&config.iiifUrlTemplate)
+	flagStringVar(&config.concurrentUploads)
+	flagBoolVar(&config.useHttps)
+	flagStringVar(&config.sslCrt)
+	flagStringVar(&config.sslKey)
 	flagStringVar(&config.tsApiHost)
 	flagStringVar(&config.tsApiGetPidTemplate)
 	flagStringVar(&config.tsApiGetManifestTemplate)
 	flagStringVar(&config.tsApiGetFullTextTemplate)
 	flagStringVar(&config.tsApiPostFullTextTemplate)
-	flagStringVar(&config.iiifUrlTemplate)
-	flagBoolVar(&config.useHttps)
-	flagStringVar(&config.sslCrt)
-	flagStringVar(&config.sslKey)
 	flagStringVar(&config.awsAccessKeyId)
 	flagStringVar(&config.awsSecretAccessKey)
 	flagStringVar(&config.awsRegion)
@@ -138,12 +141,13 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
+	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetFullTextTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
 	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
 	configOK = ensureConfigStringSet(&config.awsRegion) && configOK
@@ -176,6 +180,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
 	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
 	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
+	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
 	logger.Printf("[CONFIG] useHttps                  = [%s]", strconv.FormatBool(config.useHttps.value))
 	logger.Printf("[CONFIG] sslCrt                    = [%s]", config.sslCrt.value)
 	logger.Printf("[CONFIG] sslKey                    = [%s]", config.sslKey.value)
