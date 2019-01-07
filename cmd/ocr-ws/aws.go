@@ -273,7 +273,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			if jsonErr != nil {
 				logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jsonErr.Error())
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda creation failed"))
-				awsFinalizeFailure(info, "OCR generation process initialization failed")
+				awsFinalizeFailure(info, "OCR generation process failed (initialization failed)")
 				break
 			}
 
@@ -312,7 +312,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				a := e.WorkflowExecutionFailedEventAttributes
 				logger.Printf("[%s] start workflow execution failed (%s) - (%s)", info.workflowId, *a.Reason, *a.Details)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution failed"))
-				awsFinalizeFailure(info, "OCR generation process failed")
+				awsFinalizeFailure(info, "OCR generation process failed (could not start process)")
 				break EventsProcessingLoop
 			}
 
@@ -331,6 +331,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				a := e.FailWorkflowExecutionFailedEventAttributes
 				logger.Printf("[%s] fail workflow execution failed (%s)", info.workflowId, *a.Cause)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("FAILURE", "fail workflow execution failed"))
+				awsFinalizeFailure(info, "OCR generation process failed (could not fail process)")
 				break EventsProcessingLoop
 			}
 
@@ -388,6 +389,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				if origReq.Count >= 3 {
 					logger.Printf("[%s] maximum lambda retries exceeded (%d); failing", info.workflowId, origReq.Count)
 					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "maximum OCR retries reached for one or more pages"))
+					awsFinalizeFailure(info, "OCR generation process failed (maximum retries reached)")
 					break EventsProcessingLoop
 				}
 
@@ -397,6 +399,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				if jsonErr != nil {
 					logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jsonErr.Error())
 					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-creation failed"))
+					awsFinalizeFailure(info, "OCR generation process failed (could not retry)")
 					break EventsProcessingLoop
 				}
 
