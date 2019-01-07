@@ -45,7 +45,7 @@ compile:
 	echo ; \
 	for pkg in $(PACKAGES) ; do \
 		printf "compile: %-6s  env: [%s]  flags: [%s]\n" "$${pkg}" "$(GOENV)" "$(GOFLAGS)" ; \
-		$(GOENV) $(GOBLD) $(GOFLAGS) -o "$(BINDIR)/$${pkg}.$(TARGET)" "$(SRCDIR)/$${pkg}"/*.go ; \
+		$(GOENV) $(GOBLD) $(GOFLAGS) -o "$(BINDIR)/$${pkg}.$(TARGET)" "$(SRCDIR)/$${pkg}"/*.go || exit 1 ; \
 	done
 
 symlink:
@@ -53,7 +53,7 @@ symlink:
 	echo ; \
 	for pkg in $(PACKAGES) ; do \
 		echo "symlink: $(BINDIR)/$${pkg} -> $${pkg}.$(TARGET)" ; \
-		ln -sf "$${pkg}.$(TARGET)" "$(BINDIR)/$${pkg}" ; \
+		ln -sf "$${pkg}.$(TARGET)" "$(BINDIR)/$${pkg}" || exit 1 ; \
 	done
 
 darwin: target-darwin build
