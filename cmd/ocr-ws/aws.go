@@ -649,6 +649,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	}
 
 	if err := awsSubmitWorkflow(req); err != nil {
+		awsDeleteImages(ocr.reqID)
 		return errors.New(fmt.Sprintf("Workflow failed: [%s]", err.Error()))
 	}
 
