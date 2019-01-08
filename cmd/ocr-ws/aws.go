@@ -32,9 +32,9 @@ type decisionInfo struct {
 
 // json for webservice <-> workflow communication
 type ocrPageInfo struct {
-	Pid      string `json:"pid,omitempty"`
-	Title    string `json:"title,omitempty"`
-	Filename string `json:"filename,omitempty"`
+	Pid      string `json:"p,omitempty"`
+	Title    string `json:"t,omitempty"`
+	Filename string `json:"f,omitempty"`
 }
 
 type workflowRequest struct {
