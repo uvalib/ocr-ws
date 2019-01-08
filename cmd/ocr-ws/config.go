@@ -147,7 +147,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetFullTextTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
+	//configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
 	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
 	configOK = ensureConfigStringSet(&config.awsRegion) && configOK

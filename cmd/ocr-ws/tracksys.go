@@ -181,6 +181,13 @@ func tsGetText(pid string) (string, error) {
 }
 
 func tsPostText(pid, text string) error {
+	// if url not set, just skip over this
+
+	if config.tsApiPostFullTextTemplate.value == "" {
+		logger.Printf("SKIPPING TRACKSYS POST")
+		return nil
+	}
+
 	form := url.Values{
 		"text": {text},
 	}
