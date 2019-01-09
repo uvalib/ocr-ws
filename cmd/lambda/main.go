@@ -136,7 +136,7 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	localConvertedImage := "converted.tif"
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
-	remoteResultsPrefix := path.Join(resultsBase, path.Join(strings.Split(stripExtension(imageBase),"_")...))
+	remoteResultsPrefix := path.Join(resultsBase, req.Pid, path.Join(strings.Split(stripExtension(imageBase),"_")...))
 
 	// create aws session
 
