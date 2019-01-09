@@ -101,7 +101,7 @@ func stripExtension(fileName string) string {
 
 func convertImage(localSourceImage, localConvertedImage string) error {
 	cmd := "magick"
-	args := []string{"convert", "-density", "300", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", localSourceImage, localConvertedImage}
+	args := []string{"convert", "-density", "300", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), localConvertedImage}
 
 	if err := exec.Command(cmd, args...).Run(); err != nil {
 		return errors.New(fmt.Sprintf("Failed to convert source image: [%s]", err.Error()))
