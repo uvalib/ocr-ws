@@ -25,7 +25,7 @@ type lambdaRequest struct {
 	Bucket string `json:"bucket,omitempty"` // s3 bucket for source image
 	Key    string `json:"key,omitempty"`    // s3 key for source image
 	Pid    string `json:"pid,omitempty"`    // for workflow tracking; unused in lambda
-	Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
+	//Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
 	Count  int    `json:"count,omitempty"`  // for workflow tracking; unused in lambda
 }
 
