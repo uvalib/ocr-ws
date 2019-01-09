@@ -33,7 +33,7 @@ type decisionInfo struct {
 // json for webservice <-> workflow communication
 type ocrPageInfo struct {
 	Pid      string `json:"p,omitempty"`
-	Title    string `json:"t,omitempty"`
+	//Title    string `json:"t,omitempty"`
 	Filename string `json:"f,omitempty"`
 }
 
@@ -52,7 +52,7 @@ type lambdaRequest struct {
 	Bucket string `json:"bucket,omitempty"` // s3 bucket for source image
 	Key    string `json:"key,omitempty"`    // s3 key for source image
 	Pid    string `json:"pid,omitempty"`    // for workflow tracking; unused in lambda
-	Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
+	//Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
 	Count  int    `json:"count,omitempty"`  // for workflow tracking; unused in lambda
 }
 
@@ -158,9 +158,8 @@ func awsFinalizeSuccess(info decisionInfo) {
 			continue
 		}
 
-		//logger.Printf("ocrResult[%d]: PID: [%s]  File: [%s] i Title: [%s]  Text:\n\n%s\n\n", i, lambdaReq.Pid, lambdaReq.File, lambdaReq.Title, lambdaRes.Text)
-
-		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
+		//res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
+		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, text: lambdaRes.Text})
 	}
 
 	// sort by pid
@@ -266,7 +265,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Bucket = info.req.Bucket
 			req.Key = getS3Filename(info.req.ReqID, page.Filename)
 			req.Pid = page.Pid
-			req.Title = page.Title
+			//req.Title = page.Title
 			req.Count = 1
 
 			input, jsonErr := json.Marshal(req)
@@ -645,7 +644,8 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Bucket = config.awsBucketName.value
 
 	for _, page := range ocr.ts.Pages {
-		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
+		//req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
+		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Filename: page.Filename})
 	}
 
 	if err := awsSubmitWorkflow(req); err != nil {
