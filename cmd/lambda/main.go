@@ -135,7 +135,7 @@ func ocrImage(localConvertedImage, resultsBase, lang string) error {
 	return nil
 }
 
-func getVersion(command string, args... string) string {
+func getVersion(command string, args ...string) string {
 	cmd := exec.Command(command, args...)
 	out, _ := cmd.CombinedOutput()
 
@@ -144,8 +144,8 @@ func getVersion(command string, args... string) string {
 
 func captureSoftwareVersions(resultsBase string) {
 	cmds := []commandInfo{
-		{ Command: "tesseract", Arg: "--version" },
-		{ Command: "magick", Arg: "--version" },
+		{Command: "tesseract", Arg: "--version"},
+		{Command: "magick", Arg: "--version"},
 	}
 
 	var vers versionInfo
@@ -184,21 +184,6 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	}
 
 	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir)
-
-	// create aws session
-
-	var sessErr error
-	if sess, sessErr = session.NewSession(); sessErr != nil {
-		return "", errors.New(fmt.Sprintf("Failed to create new session: [%s]", sessErr.Error()))
-	}
-
-	// set needed environment variables
-
-	home := os.Getenv("LAMBDA_TASK_ROOT")
-
-	os.Setenv("LD_LIBRARY_PATH", fmt.Sprintf("%s/lib:%s", home, os.Getenv("LD_LIBRARY_PATH")))
-	os.Setenv("PATH", fmt.Sprintf("%s/bin:%s", home, os.Getenv("PATH")))
-	os.Setenv("TESSDATA_PREFIX", fmt.Sprintf("%s/share/tessdata", home))
 
 	// create and change to temporary working directory
 
@@ -263,6 +248,20 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+func init() {
+	// initialize aws session
+
+	sess = session.Must(session.NewSession())
+
+	// set needed environment variables
+
+	home := os.Getenv("LAMBDA_TASK_ROOT")
+
+	os.Setenv("LD_LIBRARY_PATH", fmt.Sprintf("%s/lib:%s", home, os.Getenv("LD_LIBRARY_PATH")))
+	os.Setenv("PATH", fmt.Sprintf("%s/bin:%s", home, os.Getenv("PATH")))
+	os.Setenv("TESSDATA_PREFIX", fmt.Sprintf("%s/share/tessdata", home))
 }
 
 func main() {
