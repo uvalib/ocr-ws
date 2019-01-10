@@ -27,7 +27,6 @@ type lambdaRequest struct {
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
 	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
 	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
-	Count     int    `json:"count,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
