@@ -33,6 +33,16 @@ type lambdaResponse struct {
 	Text string `json:"text,omitempty"`
 }
 
+type commandInfo struct {
+	Command string `json:"command,omitempty"`
+	Arg     string `json:"-"`
+	Version string `json:"version,omitempty"`
+}
+
+type versionInfo struct {
+	Commands []commandInfo `json:"commands,omitempty"`
+}
+
 var sess *session.Session
 
 func downloadImage(bucket, key, localFile string) (int64, error) {
@@ -125,6 +135,38 @@ func ocrImage(localConvertedImage, resultsBase, lang string) error {
 	return nil
 }
 
+func getVersion(command string, args... string) string {
+	cmd := exec.Command(command, args...)
+	out, _ := cmd.CombinedOutput()
+
+	return string(out)
+}
+
+func captureSoftwareVersions(resultsBase string) {
+	cmds := []commandInfo{
+		{ Command: "tesseract", Arg: "--version" },
+		{ Command: "magick", Arg: "--version" },
+	}
+
+	var vers versionInfo
+
+	for _, cmd := range cmds {
+		cmd.Version = getVersion(cmd.Command, cmd.Arg)
+		vers.Commands = append(vers.Commands, cmd)
+	}
+
+	verText, jsonErr := json.Marshal(vers)
+	if jsonErr != nil {
+		return
+	}
+
+	verFile := fmt.Sprintf("%s.ver", resultsBase)
+
+	if err := ioutil.WriteFile(verFile, verText, 0644); err != nil {
+		return
+	}
+}
+
 func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	// set file/path variables
 
@@ -198,6 +240,10 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	if readErr != nil {
 		return "", errors.New(fmt.Sprintf("Failed to read ocr results file: [%s]", readErr.Error()))
 	}
+
+	// capture software versions used to process this request
+
+	captureSoftwareVersions(resultsBase)
 
 	// upload results
 
