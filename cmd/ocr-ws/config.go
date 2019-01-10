@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -27,6 +28,7 @@ type configData struct {
 	storageDir                configStringItem
 	archiveDir                configStringItem
 	concurrentUploads         configStringItem
+	lambdaAttempts            configStringItem
 	useHttps                  configBoolItem
 	sslCrt                    configStringItem
 	sslKey                    configStringItem
@@ -56,6 +58,7 @@ func init() {
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
+	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
 	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
@@ -103,12 +106,21 @@ func flagBoolVar(item *configBoolItem) {
 	flag.BoolVar(&item.value, item.flag, getBoolEnv(item.env), item.desc)
 }
 
+func maskValue(value string) string {
+	if len(value) < 8 {
+		return "......."
+	}
+
+	return fmt.Sprintf("...%s", value[len(value)-4:])
+}
+
 func getConfigValues() {
 	// get values from the command line first, falling back to environment variables
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.concurrentUploads)
+	flagStringVar(&config.lambdaAttempts)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
 	flagStringVar(&config.sslKey)
@@ -139,6 +151,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
+	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
@@ -170,17 +183,18 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] listenPort                = [%s]", config.listenPort.value)
 	logger.Printf("[CONFIG] storageDir                = [%s]", config.storageDir.value)
 	logger.Printf("[CONFIG] archiveDir                = [%s]", config.archiveDir.value)
+	logger.Printf("[CONFIG] lambdaAttempts            = [%s]", config.lambdaAttempts.value)
+	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
 	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
 	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
 	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
-	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
 	logger.Printf("[CONFIG] useHttps                  = [%s]", strconv.FormatBool(config.useHttps.value))
 	logger.Printf("[CONFIG] sslCrt                    = [%s]", config.sslCrt.value)
 	logger.Printf("[CONFIG] sslKey                    = [%s]", config.sslKey.value)
-	logger.Printf("[CONFIG] awsAccessKeyId            = [%s]", config.awsAccessKeyId.value)
-	logger.Printf("[CONFIG] awsSecretAccessKey        = [REDACTED]")
+	logger.Printf("[CONFIG] awsAccessKeyId            = [%s]", maskValue(config.awsAccessKeyId.value))
+	logger.Printf("[CONFIG] awsSecretAccessKey        = [%s]", maskValue(config.awsSecretAccessKey.value))
 	logger.Printf("[CONFIG] awsRegion                 = [%s]", config.awsRegion.value)
 	logger.Printf("[CONFIG] awsSwfDomain              = [%s]", config.awsSwfDomain.value)
 	logger.Printf("[CONFIG] awsSwfTaskList            = [%s]", config.awsSwfTaskList.value)
