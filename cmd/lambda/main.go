@@ -21,12 +21,13 @@ import (
 
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
-	Lang   string `json:"lang,omitempty"`   // language to use for ocr
-	Bucket string `json:"bucket,omitempty"` // s3 bucket for source image
-	Key    string `json:"key,omitempty"`    // s3 key for source image
-	Pid    string `json:"pid,omitempty"`    // for workflow tracking; unused in lambda
-	//Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
-	Count  int    `json:"count,omitempty"`  // for workflow tracking; unused in lambda
+	Lang      string `json:"lang,omitempty"`      // language to use for ocr
+	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
+	Key       string `json:"key,omitempty"`       // s3 key for source image
+	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
+	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
+	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
+	Count     int    `json:"count,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
@@ -136,7 +137,12 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	localConvertedImage := "converted.tif"
 	localResultsTxt := fmt.Sprintf("%s.txt", resultsBase)
 
-	remoteResultsPrefix := path.Join(resultsBase, req.Pid, path.Join(strings.Split(stripExtension(imageBase),"_")...))
+	remoteSubDir := req.Pid
+	if req.Pid != req.ParentPid {
+		remoteSubDir = path.Join(req.ParentPid, req.Pid)
+	}
+
+	remoteResultsPrefix := path.Join(resultsBase, remoteSubDir)
 
 	// create aws session
 

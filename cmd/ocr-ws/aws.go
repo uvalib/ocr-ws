@@ -48,12 +48,13 @@ type workflowRequest struct {
 
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
-	Lang   string `json:"lang,omitempty"`   // language to use for ocr
-	Bucket string `json:"bucket,omitempty"` // s3 bucket for source image
-	Key    string `json:"key,omitempty"`    // s3 key for source image
-	Pid    string `json:"pid,omitempty"`    // for workflow tracking; unused in lambda
-	//Title  string `json:"title,omitempty"`  // for workflow tracking; unused in lambda
-	Count  int    `json:"count,omitempty"`  // for workflow tracking; unused in lambda
+	Lang      string `json:"lang,omitempty"`      // language to use for ocr
+	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
+	Key       string `json:"key,omitempty"`       // s3 key for source image
+	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
+	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
+	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
+	Count     int    `json:"count,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
@@ -264,6 +265,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Lang = info.req.Lang
 			req.Bucket = info.req.Bucket
 			req.Key = getS3Filename(info.req.ReqID, page.Filename)
+			req.ParentPid = info.req.Pid
 			req.Pid = page.Pid
 			//req.Title = page.Title
 			req.Count = 1
