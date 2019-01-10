@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"sort"
@@ -54,7 +55,6 @@ type lambdaRequest struct {
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
 	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
 	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
-	Count     int    `json:"count,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
@@ -89,10 +89,11 @@ func awsFailWorkflowExecution(reason, details string) *swf.Decision {
 	return decision
 }
 
-func awsScheduleLambdaFunction(input string) *swf.Decision {
+func awsScheduleLambdaFunction(input, control string) *swf.Decision {
 	decision := (&swf.Decision{}).
 		SetDecisionType("ScheduleLambdaFunction").
 		SetScheduleLambdaFunctionDecisionAttributes((&swf.ScheduleLambdaFunctionDecisionAttributes{}).
+			SetControl(control).
 			SetName(config.awsLambdaFunction.value).
 			SetId(newUUID()).
 			SetInput(input))
@@ -100,10 +101,11 @@ func awsScheduleLambdaFunction(input string) *swf.Decision {
 	return decision
 }
 
-func awsStartTimer(duration int) *swf.Decision {
+func awsStartTimer(duration int, control string) *swf.Decision {
 	decision := (&swf.Decision{}).
 		SetDecisionType("StartTimer").
 		SetStartTimerDecisionAttributes((&swf.StartTimerDecisionAttributes{}).
+			SetControl(control).
 			SetStartToFireTimeout(strconv.Itoa(duration)).
 			SetTimerId(newUUID()))
 
@@ -149,12 +151,12 @@ func awsFinalizeSuccess(info decisionInfo) {
 		}
 
 		// get pid/title from original request
-		origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
-		origInput := *origEvent.LambdaFunctionScheduledEventAttributes.Input
+		o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+		origLambdaInput := *o.LambdaFunctionScheduledEventAttributes.Input
 
 		lambdaReq := lambdaRequest{}
 
-		if jErr := json.Unmarshal([]byte(origInput), &lambdaReq); jErr != nil {
+		if jErr := json.Unmarshal([]byte(origLambdaInput), &lambdaReq); jErr != nil {
 			logger.Printf("Unmarshal() failed [finalize request]: %s", jErr.Error())
 			continue
 		}
@@ -268,7 +270,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.ParentPid = info.req.Pid
 			req.Pid = page.Pid
 			//req.Title = page.Title
-			req.Count = 1
 
 			input, jsonErr := json.Marshal(req)
 			if jsonErr != nil {
@@ -280,7 +281,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 			//logger.Printf("[%s] lambda json: [%s]", info.workflowId, input)
 
-			decisions = append(decisions, awsScheduleLambdaFunction(string(input)))
+			decisions = append(decisions, awsScheduleLambdaFunction(string(input), "1"))
 		}
 
 	// completion condition (success): number of successful lambda executions = number of pids
@@ -292,8 +293,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// middle of the workflow -- typically this occurs when lambdas complete/fail/timeout
 	// decision(s): if lambdas recently failed/timed out, schedule them to be rerun; otherwise
 	// send an empty decision (waits for another event to prompt a new decision task)
-	// NOTE: there is no workflow failure condition for lambdas that fail/timeout, we simply
-	// keep retrying them until the workflow itself times out.
 	default:
 		var uniqueEventTypes []string
 		for _, e := range info.recentEvents {
@@ -305,7 +304,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		for _, e := range info.recentEvents {
 			t := *e.EventType
 
-			var origInput string
+			var origLambdaEvent int64
+			var origLambdaInput string
+			var origLambdaCount string
 
 			// attempt to start the workflow failed: ???
 			// decision(s): ???
@@ -344,67 +345,79 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				details := lambdaFailureDetails{}
 				json.Unmarshal([]byte(*a.Details), &details)
 
-				logger.Printf("[%s] lambda failed: (%s) : [%s] / [%s]", info.workflowId, reason, details.ErrorType, details.ErrorMessage)
-
-				// rerun anything except unhandled errors
-				switch {
-				case reason == "UnhandledError":
-					logger.Printf("[%s] unhandled error", info.workflowId)
-					//decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "unhandled lambda error"))
-					//awsFinalizeFailure(info, "OCR generation process failed unexpectedly")
-					//break EventsProcessingLoop
-
-				case reason == "HandledError":
-					logger.Printf("[%s] handled error", info.workflowId)
-
-				case reason == "TooManyRequestsException":
-					logger.Printf("[%s] too many requests", info.workflowId)
-
-				default:
-					logger.Printf("[%s] some other error", info.workflowId)
+				if details.ErrorType != "" || details.ErrorMessage != "" {
+					logger.Printf("[%s] lambda failed: (%s) : [%s] / [%s]", info.workflowId, reason, details.ErrorType, details.ErrorMessage)
+				} else {
+					logger.Printf("[%s] lambda failed: (%s)", info.workflowId, reason)
 				}
 
-				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
-				origInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+				o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
+				origLambdaEvent = *a.ScheduledEventId
 			}
 
 			// if this a recently timed out lambda execution, rerun it
 			if t == "LambdaFunctionTimedOut" {
 				a := e.LambdaFunctionTimedOutEventAttributes
+
 				logger.Printf("[%s] lambda timed out (%s)", info.workflowId, *a.TimeoutType)
-				origEvent := awsEventWithId(info.allEvents, *a.ScheduledEventId)
-				origInput = *origEvent.LambdaFunctionScheduledEventAttributes.Input
+
+				o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
+				origLambdaEvent = *a.ScheduledEventId
 			}
 
-			if origInput != "" {
-				origReq := lambdaRequest{}
+			// if this a timer that fired, rerun the associated lambda
+			if t == "TimerFired" {
+				a := e.TimerFiredEventAttributes
 
-				if jErr := json.Unmarshal([]byte(origInput), &origReq); jErr != nil {
-					logger.Printf("[%s] Unmarshal() failed [rerun request]: %s", info.workflowId, jErr.Error())
-					continue EventsProcessingLoop
+				logger.Printf("[%s] timer fired", info.workflowId)
+
+				o := awsEventWithId(info.allEvents, *a.StartedEventId)
+
+				id, _ := strconv.Atoi(*o.TimerStartedEventAttributes.Control)
+				o = awsEventWithId(info.allEvents, int64(id))
+
+				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
+				origLambdaInput = *o.LambdaFunctionScheduledEventAttributes.Input
+				origLambdaEvent = int64(id)
+			}
+
+			// handle lambda retry-related scenarios:
+			// if just count/event is set, start a new timer to delay lambda retry.  if input is also set, rerun the lambda.
+			if origLambdaCount != "" && origLambdaEvent != 0 {
+				count, _ := strconv.Atoi(origLambdaCount)
+
+				if origLambdaInput != "" {
+					// rerun the referenced lambda
+
+					count++
+
+					logger.Printf("[%s] retrying lambda event %s (attempt %d)", info.workflowId, origLambdaEvent, count)
+
+					decisions = append(decisions, awsScheduleLambdaFunction(origLambdaInput, strconv.Itoa(count)))
+				} else {
+					// start a timer referencing the original lambda to be rerun, with exponential backoff based on execution count
+
+					maxAttempts, _ := strconv.Atoi(config.lambdaAttempts.value)
+					if maxAttempts < 1 {
+						maxAttempts = 1
+					}
+
+					// limit number of reruns
+					if count >= maxAttempts {
+						logger.Printf("[%s] maximum lambda attempts reached (%d); failing", info.workflowId, maxAttempts)
+						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "maximum OCR attempts reached for one or more pages"))
+						awsFinalizeFailure(info, "OCR generation process failed (maximum attempts reached)")
+						break EventsProcessingLoop
+					}
+
+					delay := int(math.Pow(2, float64(count)))
+
+					logger.Printf("[%s] scheduling lambda event %s to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
+
+					decisions = append(decisions, awsStartTimer(delay, fmt.Sprintf("%d", origLambdaEvent)))
 				}
-
-				// limit reruns to this many
-
-				if origReq.Count >= 3 {
-					logger.Printf("[%s] maximum lambda retries exceeded (%d); failing", info.workflowId, origReq.Count)
-					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "maximum OCR retries reached for one or more pages"))
-					awsFinalizeFailure(info, "OCR generation process failed (maximum retries reached)")
-					break EventsProcessingLoop
-				}
-
-				origReq.Count = origReq.Count + 1
-
-				rerunInput, jsonErr := json.Marshal(origReq)
-				if jsonErr != nil {
-					logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jsonErr.Error())
-					decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-creation failed"))
-					awsFinalizeFailure(info, "OCR generation process failed (could not retry)")
-					break EventsProcessingLoop
-				}
-
-				logger.Printf("[%s] rerunning lambda with modified input: [%s]", info.workflowId, rerunInput)
-				decisions = append(decisions, awsScheduleLambdaFunction(string(rerunInput)))
 			}
 		}
 	}
