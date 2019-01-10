@@ -2,54 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
-
-func checkIIIFService() bool {
-	// check IIIF server
-
-	iiifPid := "uva-lib:2584807"
-	size, expectedSize := 0, 71587
-	iiifStatus := true
-
-	logger.Printf("[HEALTH] [IIIF] checking for PID: [%s]", iiifPid)
-
-	url := config.iiifUrlTemplate.value
-	url = strings.Replace(url, "{PID}", iiifPid, 1)
-
-	resp, err := client.Get(url)
-	if err != nil {
-		logger.Printf("[HEALTH] [IIIF] ERROR: Get: (%s)", err)
-		iiifStatus = false
-	} else {
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Printf("[HEALTH] [IIIF] ERROR: ReadAll: (%s)", err)
-			iiifStatus = false
-		} else {
-			resp.Body.Close()
-			size = len(b)
-
-			logger.Printf("[HEALTH] [IIIF] image size: expected %d, got %d", expectedSize, size)
-
-			if size != expectedSize {
-				logger.Printf("[HEALTH] [IIIF] size mismatch")
-				iiifStatus = false
-			}
-		}
-	}
-
-	logger.Printf("[HEALTH] [IIIF] SUCCESS")
-
-	return iiifStatus
-}
 
 func checkFilesystem() bool {
 	// create a test file in a random directory to ensure filesystem exists and is writeable
@@ -92,14 +51,9 @@ func healthCheckHandler(rw http.ResponseWriter, req *http.Request, params httpro
 
 	//tsStatus := checkTracksysAPI()
 	tsStatus := true
-	iiifStatus := checkIIIFService()
 	fsStatus := checkFilesystem()
 
-	out := fmt.Sprintf(`{"alive": %t, "iiif": %t, "tracksys": %t, "storage": %t}`, true, iiifStatus, tsStatus, fsStatus)
+	out := fmt.Sprintf(`{"alive": %t, "tracksys": %t, "storage": %t}`, true, tsStatus, fsStatus)
 
-	if iiifStatus == false {
-		http.Error(rw, out, http.StatusInternalServerError)
-	} else {
-		fmt.Fprintf(rw, out)
-	}
+	fmt.Fprintf(rw, out)
 }

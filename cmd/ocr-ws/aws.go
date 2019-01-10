@@ -353,7 +353,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					//break EventsProcessingLoop
 
 				case reason == "HandledError":
-					// could be 503 error on IIIF server due to load we put on it
 					logger.Printf("[%s] handled error", info.workflowId)
 
 				case reason == "TooManyRequestsException":

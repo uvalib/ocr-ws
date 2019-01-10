@@ -26,7 +26,6 @@ type configData struct {
 	listenPort                configStringItem
 	storageDir                configStringItem
 	archiveDir                configStringItem
-	iiifUrlTemplate           configStringItem
 	concurrentUploads         configStringItem
 	useHttps                  configBoolItem
 	sslCrt                    configStringItem
@@ -56,7 +55,6 @@ func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
-	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
@@ -110,7 +108,6 @@ func getConfigValues() {
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.archiveDir)
-	flagStringVar(&config.iiifUrlTemplate)
 	flagStringVar(&config.concurrentUploads)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
@@ -141,7 +138,6 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
-	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
@@ -179,7 +175,6 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
 	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
-	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
 	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
 	logger.Printf("[CONFIG] useHttps                  = [%s]", strconv.FormatBool(config.useHttps.value))
 	logger.Printf("[CONFIG] sslCrt                    = [%s]", config.sslCrt.value)
