@@ -393,7 +393,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					count++
 
-					logger.Printf("[%s] retrying lambda event %s (attempt %d)", info.workflowId, origLambdaEvent, count)
+					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
 
 					decisions = append(decisions, awsScheduleLambdaFunction(origLambdaInput, strconv.Itoa(count)))
 				} else {
@@ -414,7 +414,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					delay := int(math.Pow(2, float64(count)))
 
-					logger.Printf("[%s] scheduling lambda event %s to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
+					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
 
 					decisions = append(decisions, awsStartTimer(delay, fmt.Sprintf("%d", origLambdaEvent)))
 				}
