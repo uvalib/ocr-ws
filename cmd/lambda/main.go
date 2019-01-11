@@ -33,17 +33,19 @@ type lambdaResponse struct {
 	Text string `json:"text,omitempty"`
 }
 
+// json for logged command history
 type commandInfo struct {
-	Command string `json:"command,omitempty"`
-	Arg     string `json:"-"`
-	Version string `json:"version,omitempty"`
+	Command   string   `json:"command,omitempty"`
+	Arguments []string `json:"arguments,omitempty"`
+	Output    string   `json:"output,omitempty"`
 }
 
-type versionInfo struct {
+type commandHistory struct {
 	Commands []commandInfo `json:"commands,omitempty"`
 }
 
 var sess *session.Session
+var cmds *commandHistory
 
 func downloadImage(bucket, key, localFile string) (int64, error) {
 	downloader := s3manager.NewDownloader(sess)
@@ -109,12 +111,22 @@ func stripExtension(fileName string) string {
 	return strippedFileName
 }
 
+func runCommand(command string, arguments ...string) (string, error) {
+	out, err := exec.Command(command, arguments...).CombinedOutput()
+
+	output := string(out)
+
+	cmds.Commands = append(cmds.Commands, commandInfo{Command: command, Arguments: arguments, Output: output})
+
+	return output, err
+}
+
 func convertImage(localSourceImage, localConvertedImage string) error {
 	cmd := "magick"
 	args := []string{"convert", "-density", "300", "-units", "PixelsPerInch", "-type", "Grayscale", "+compress", "+repage", fmt.Sprintf("%s[0]", localSourceImage), localConvertedImage}
 
-	if err := exec.Command(cmd, args...).Run(); err != nil {
-		return errors.New(fmt.Sprintf("Failed to convert source image: [%s]", err.Error()))
+	if out, err := runCommand(cmd, args...); err != nil {
+		return errors.New(fmt.Sprintf("Failed to convert source image: [%s] (%s)", err.Error(), out))
 	}
 
 	return nil
@@ -126,10 +138,10 @@ func ocrImage(localConvertedImage, resultsBase, lang string) error {
 	}
 
 	cmd := "tesseract"
-	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", lang, "quiet", "txt", "hocr", "pdf"}
+	args := []string{localConvertedImage, resultsBase, "--psm", "1", "-l", lang, "txt", "hocr", "pdf"}
 
-	if err := exec.Command(cmd, args...).Run(); err != nil {
-		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s]", err.Error()))
+	if out, err := runCommand(cmd, args...); err != nil {
+		return errors.New(fmt.Sprintf("Failed to ocr converted image: [%s] (%s)", err.Error(), out))
 	}
 
 	return nil
@@ -142,33 +154,28 @@ func getVersion(command string, args ...string) string {
 	return string(out)
 }
 
-func captureSoftwareVersions(resultsBase string) {
-	cmds := []commandInfo{
-		{Command: "tesseract", Arg: "--version"},
-		{Command: "magick", Arg: "--version"},
-	}
+func getSoftwareVersions() {
+	runCommand("magick", "--version")
+	runCommand("tesseract", "--version")
+}
 
-	var vers versionInfo
-
-	for _, cmd := range cmds {
-		cmd.Version = getVersion(cmd.Command, cmd.Arg)
-		vers.Commands = append(vers.Commands, cmd)
-	}
-
-	verText, jsonErr := json.Marshal(vers)
+func saveCommandHistory(resultsBase string) {
+	cmdsText, jsonErr := json.Marshal(cmds)
 	if jsonErr != nil {
 		return
 	}
 
-	verFile := fmt.Sprintf("%s.ver", resultsBase)
+	cmdsFile := fmt.Sprintf("%s.log", resultsBase)
 
-	if err := ioutil.WriteFile(verFile, verText, 0644); err != nil {
+	if err := ioutil.WriteFile(cmdsFile, cmdsText, 0644); err != nil {
 		return
 	}
 }
 
 func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 	// set file/path variables
+
+	cmds = &commandHistory{}
 
 	imageBase := path.Base(req.Key)
 	resultsBase := "results"
@@ -207,6 +214,9 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 		return "", dlErr
 	}
 
+	// log versions of software we are using
+	getSoftwareVersions()
+
 	// run magick
 
 	if err := convertImage(localSourceImage, localConvertedImage); err != nil {
@@ -226,9 +236,9 @@ func handleOcrRequest(ctx context.Context, req lambdaRequest) (string, error) {
 		return "", errors.New(fmt.Sprintf("Failed to read ocr results file: [%s]", readErr.Error()))
 	}
 
-	// capture software versions used to process this request
+	// save command history to a json-formatted log file
 
-	captureSoftwareVersions(resultsBase)
+	saveCommandHistory(resultsBase)
 
 	// upload results
 
