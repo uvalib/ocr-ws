@@ -39,7 +39,7 @@ func getS3Filename(reqID, imgFile string) string {
 	localFile := getLocalFilename(imgFile)
 	baseFile := path.Base(localFile)
 	parentDir := path.Base(path.Dir(localFile))
-	s3File := path.Join(reqID, parentDir, baseFile)
+	s3File := path.Join("requests", reqID, parentDir, baseFile)
 	return s3File
 }
 
