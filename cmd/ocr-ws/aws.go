@@ -558,7 +558,7 @@ func awsDeleteImages(reqDir string) error {
 
 	iter := s3manager.NewDeleteListIterator(svc, &s3.ListObjectsInput{
 		Bucket: aws.String(config.awsBucketName.value),
-		Prefix: aws.String(reqDir),
+		Prefix: aws.String(fmt.Sprintf("requests/%s", reqDir)),
 	})
 
 	err := s3manager.NewBatchDeleteWithClient(svc).Delete(aws.BackgroundContext(), iter)
