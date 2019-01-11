@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"runtime"
 	"sort"
@@ -67,6 +68,10 @@ type lambdaFailureDetails struct {
 	ErrorType    string   `json:"errorType,omitempty"`
 	StackTrace   []string `json:"stackTrace,omitempty"`
 }
+
+// globals
+
+var random *rand.Rand
 
 // functions
 
@@ -412,7 +417,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 						break EventsProcessingLoop
 					}
 
-					delay := int(math.Pow(2, float64(count)))
+					delay := int(math.Pow(2, float64(count))) + random.Intn(15)
 
 					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
 
@@ -459,6 +464,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 func awsPollForDecisionTasks() {
 	svc := swf.New(sess)
+
+	random = rand.New(rand.New(rand.NewSource(time.Now().UnixNano())))
 
 	for {
 		var info decisionInfo
