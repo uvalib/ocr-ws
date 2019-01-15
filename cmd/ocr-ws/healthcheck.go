@@ -19,7 +19,7 @@ func checkFilesystem() bool {
 
 	logger.Printf("[HEALTH] [Filesystem] creating random test directory: [%s]", testPath)
 
-	if mkdirErr := os.Mkdir(testPath, 0777); mkdirErr != nil {
+	if mkdirErr := os.Mkdir(testPath, 0775); mkdirErr != nil {
 		logger.Printf("[HEALTH] [Filesystem] ERROR: Mkdir: (%s)", mkdirErr)
 		return false
 	}
@@ -27,7 +27,7 @@ func checkFilesystem() bool {
 
 	logger.Printf("[HEALTH] [Filesystem] creating test file")
 
-	testFile, openErr := os.OpenFile(fmt.Sprintf("%s/test.txt", testPath), os.O_CREATE|os.O_RDWR, 0666)
+	testFile, openErr := os.OpenFile(fmt.Sprintf("%s/test.txt", testPath), os.O_CREATE|os.O_RDWR, 0664)
 	if openErr != nil {
 		logger.Printf("[HEALTH] [Filesystem] ERROR: OpenFile: (%s)", openErr)
 		return false
