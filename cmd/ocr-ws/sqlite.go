@@ -13,7 +13,17 @@ func sqlFileName(path string) string {
 	return fmt.Sprintf("%s/requests.db", path)
 }
 
-func sqlOpenDB(path string) (*sql.DB, error) {
+func sqlDatabaseExists(path string) bool {
+	dbFile := sqlFileName(path)
+
+    if _, err := os.Stat(dbFile); err == nil {
+        return true
+    }
+
+	return false
+}
+
+func sqlOpenDatabase(path string) (*sql.DB, error) {
 	dbFile := sqlFileName(path)
 
 	//logger.Printf("[sql] using db file: [%s]", dbFile)
@@ -21,7 +31,7 @@ func sqlOpenDB(path string) (*sql.DB, error) {
 	return sql.Open("sqlite3", dbFile)
 }
 
-func sqlRemoveDB(path string) {
+func sqlRemoveDatabase(path string) {
 	dbFile := sqlFileName(path)
 
 	os.Remove(dbFile)
@@ -29,7 +39,7 @@ func sqlRemoveDB(path string) {
 
 func sqlAddEmail(path, email string) error {
 	// open database
-	db, err := sqlOpenDB(path)
+	db, err := sqlOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[sql] failed to open requests database when adding email: [%s]", err.Error())
 		return errors.New("Failed to open requests database")
@@ -69,7 +79,7 @@ func sqlAddEmail(path, email string) error {
 
 func sqlGetEmails(path string) ([]string, error) {
 	// open database
-	db, err := sqlOpenDB(path)
+	db, err := sqlOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[sql] failed to open requests database when adding email: [%s]", err.Error())
 		return nil, errors.New("Failed to open requests database")
