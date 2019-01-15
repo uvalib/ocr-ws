@@ -10,56 +10,29 @@ import (
 	"strings"
 )
 
-// fields common to metadata, master_file, and cloned_from structs
-type tsAPICommonFields struct {
-	Id         int    `json:"id,omitempty"`
-	Pid        string `json:"pid,omitempty"`
-	Type       string `json:"type,omitempty"`
-	Title      string `json:"title,omitempty"`
-	Filename   string `json:"filename,omitempty"`
-	TextSource string `json:"text_source,omitempty"`
+// the line between metadata/masterfile fields is getting blurry; just lump them together
+type tsGenericPidInfo struct {
+	Id              int    `json:"id,omitempty"`
+	Pid             string `json:"pid,omitempty"`
+	Type            string `json:"type,omitempty"`
+	Title           string `json:"title,omitempty"`
+	Filename        string `json:"filename,omitempty"`
+	TextSource      string `json:"text_source,omitempty"`
+	OcrHint         string `json:"ocr_hint,omitempty"`
+	OcrCandidate    bool   `json:"ocr_candidate,omitempty"`
+	OcrLanguageHint string `json:"ocr_language_hint,omitempty"`
 }
 
-// /api/pid/:PID response
-
-type tsAPIPidClonedFrom struct {
-	// only uses id/pid/filename
-	tsAPICommonFields
-}
-
-type tsAPIPidResponse struct {
-	tsAPICommonFields
-	// in metadata only:
-	AvailabilityPolicy string `json:"availability_policy,omitempty"`
-	OcrHint            string `json:"ocr_hint,omitempty"`
-	OcrLanguageHint    string `json:"ocr_language_hint,omitempty"`
-	// in master_files only:
-	ParentMetadataPid string             `json:"parent_metadata_pid,omitempty"`
-	ClonedFrom        tsAPIPidClonedFrom `json:"cloned_from,omitempty"`
-}
-
-// /api/manifest/:PID response
-
-type tsAPIManifestFile struct {
-	tsAPICommonFields
-	Width  int `json:"width,omitempty"`
-	Height int `json:"height,omitempty"`
-}
-
-// unused because json response is unnamed array
-type tsAPIManifestResponse struct {
-	Files []tsAPIManifestFile
-}
-
-// holds pid/page info
+// holds metadata pid/page info
 type tsPidInfo struct {
-	tsAPIPidResponse
-	Pages []tsAPICommonFields
+	Pid       tsGenericPidInfo
+	Pages     []tsGenericPidInfo
+	isOcrable bool
 }
 
-func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) ([]tsAPICommonFields, error) {
+func tsGetPagesFromManifest(pid string) ([]tsGenericPidInfo, error) {
 	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetManifestTemplate.value)
-	url = strings.Replace(url, "{PID}", ocr.req.pid, 1)
+	url = strings.Replace(url, "{PID}", pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -77,28 +50,42 @@ func tsGetPagesFromManifest(ocr ocrInfo, w http.ResponseWriter) ([]tsAPICommonFi
 
 	// parse json from body
 
-	var tsManifestInfo []tsAPIManifestFile
+	var tsPages []tsGenericPidInfo
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	if jErr := json.Unmarshal(buf, &tsManifestInfo); jErr != nil {
+	if jErr := json.Unmarshal(buf, &tsPages); jErr != nil {
 		logger.Printf("Unmarshal() failed: %s", jErr.Error())
 		return nil, errors.New(fmt.Sprintf("Failed to unmarshal manifest response: [%s]", buf))
 	}
 
-	var tsPages []tsAPICommonFields
-
-	for i, p := range tsManifestInfo {
-		logger.Printf("    [page %d / %d]  { [%s]  [%s]  [%s] }", i+1, len(tsManifestInfo), p.Pid, p.Filename, p.Title)
-
-		tsPages = append(tsPages, tsAPICommonFields{Pid: p.Pid, Filename: p.Filename, Title: p.Title})
+	for i, p := range tsPages {
+		logger.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(tsPages), p.Pid, p.Filename, p.Title, p.TextSource)
 	}
 
 	return tsPages, nil
 }
 
-func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
+func tsGetPagesFromPids(oldPages []tsGenericPidInfo) ([]tsGenericPidInfo, error) {
+	var tsPages []tsGenericPidInfo
+
+	for i, p := range oldPages {
+		tsPage, err := tsGetPidInfo(p.Pid)
+
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(oldPages), tsPage.Pid.Pid, tsPage.Pid.Filename, tsPage.Pid.Title, tsPage.Pid.TextSource)
+
+		tsPages = append(tsPages, tsPage.Pid)
+	}
+
+	return tsPages, nil
+}
+
+func tsGetPidInfo(pid string) (*tsPidInfo, error) {
 	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetPidTemplate.value)
-	url = strings.Replace(url, "{PID}", ocr.req.pid, 1)
+	url = strings.Replace(url, "{PID}", pid, 1)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -119,36 +106,71 @@ func tsGetPidInfo(ocr ocrInfo, w http.ResponseWriter) (*tsPidInfo, error) {
 	var ts tsPidInfo
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	if jErr := json.Unmarshal(buf, &ts); jErr != nil {
+	if jErr := json.Unmarshal(buf, &ts.Pid); jErr != nil {
 		logger.Printf("Unmarshal() failed: %s", jErr.Error())
 		return nil, errors.New(fmt.Sprintf("Failed to unmarshal pid response: [%s]", buf))
 	}
 
-	logger.Printf("Type               : [%s]", ts.Type)
-	logger.Printf("AvailabilityPolicy : [%s]", ts.AvailabilityPolicy)
-	logger.Printf("ParentMetadataPid  : [%s]", ts.ParentMetadataPid)
-	logger.Printf("TextSource         : [%s]", ts.TextSource)
-	logger.Printf("OcrHint            : [%s]", ts.OcrHint)
-	logger.Printf("OcrLanguageHint    : [%s]", ts.OcrLanguageHint)
+	logger.Printf("Type            : [%s]", ts.Pid.Type)
+	logger.Printf("TextSource      : [%s]", ts.Pid.TextSource)
+	logger.Printf("OcrHint         : [%s]", ts.Pid.OcrHint)
+	logger.Printf("OcrCandidate    : [%t]", ts.Pid.OcrCandidate)
+	logger.Printf("OcrLanguageHint : [%s]", ts.Pid.OcrLanguageHint)
 
 	switch {
-	case ts.Type == "master_file":
-		logger.Printf("    [page 1 / 1]  { [%s]  [%s]  [%s] }", ts.Pid, ts.Filename, ts.Title)
+	case ts.Pid.Type == "master_file":
+		logger.Printf("    [page 1 / 1]  { [%s]  [%s]  [%s]  [%s] }", ts.Pid.Pid, ts.Pid.Filename, ts.Pid.Title, ts.Pid.TextSource)
 
-		ts.Pages = append(ts.Pages, tsAPICommonFields{Id: ts.Id, Pid: ts.Pid, Type: ts.Type, Filename: ts.Filename, Title: ts.Title, TextSource: ts.TextSource})
+		ts.Pages = append(ts.Pages, ts.Pid)
 		return &ts, nil
 
-	case strings.Contains(ts.Type, "metadata"):
+	case strings.Contains(ts.Pid.Type, "metadata"):
 		var mfErr error
-		ts.Pages, mfErr = tsGetPagesFromManifest(ocr, w)
+
+		ts.Pages, mfErr = tsGetPagesFromManifest(pid)
 		if mfErr != nil {
 			logger.Printf("tsGetPagesFromManifest() failed: [%s]", mfErr.Error())
 			return nil, mfErr
 		}
+
+		ts.Pages, mfErr = tsGetPagesFromPids(ts.Pages)
+		if mfErr != nil {
+			logger.Printf("tsGetPagesFromPids() failed: [%s]", mfErr.Error())
+			return nil, mfErr
+		}
+
 		return &ts, nil
 	}
 
-	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Type))
+	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Pid.Type))
+}
+
+func tsGetMetadataPidInfo(ocr ocrInfo) (*tsPidInfo, error) {
+	ts, err := tsGetPidInfo(ocr.req.pid)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.Contains(ts.Pid.Type, "metadata") == false {
+		return nil, errors.New(fmt.Sprintf("PID is not a metadata type: [%s]", ts.Pid.Type))
+	}
+
+	// ensure there are pages to process
+	if len(ts.Pages) == 0 {
+		return nil, errors.New("Metadata PID does not have any pages")
+	}
+
+    // check if this is ocr-able: FIXME (DCMD-634)
+	ts.isOcrable = false
+    //if ts.Pid.OcrCandidate == true {
+    if ts.Pid.OcrHint == "Regular Font" || ts.Pid.OcrHint == "Modern Font" {
+		if ts.Pid.TextSource == "" || ts.Pid.TextSource == "ocr" {
+			ts.isOcrable = true
+		}
+	}
+
+	return ts, nil
 }
 
 func tsGetText(pid string) (string, error) {
