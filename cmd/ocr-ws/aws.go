@@ -501,6 +501,7 @@ func awsPollForDecisionTasks() {
 
 		if pollErr != nil {
 			logger.Printf("polling error: %s", pollErr.Error())
+			time.Sleep(60 * time.Second)
 			continue
 		}
 
