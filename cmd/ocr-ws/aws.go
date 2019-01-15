@@ -660,7 +660,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 
 	req.Pid = ocr.req.pid
 	req.Path = ocr.subDir
-	req.Lang = ocr.ts.OcrLanguageHint
+	req.Lang = ocr.ts.Pid.OcrLanguageHint
 	req.ReqID = ocr.reqID
 	req.Bucket = config.awsBucketName.value
 
