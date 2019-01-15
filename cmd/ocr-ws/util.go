@@ -44,7 +44,7 @@ func getS3Filename(reqID, imgFile string) string {
 }
 
 func writeFileWithContents(filename, contents string) error {
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0664)
 
 	if err != nil {
 		logger.Printf("Unable to open file: %s", err.Error())
