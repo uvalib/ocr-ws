@@ -39,7 +39,9 @@ func main() {
 	// Set routes and start server
 	mux := httprouter.New()
 	mux.GET("/", rootHandler)
-	mux.GET("/ocr/:pid", generateHandler)
+	mux.GET("/ocr/:pid", ocrGenerateHandler)
+	mux.GET("/ocr/:pid/status", ocrStatusHandler)
+	mux.GET("/ocr/:pid/text", ocrTextHandler)
 	mux.GET("/healthcheck", healthCheckHandler)
 	logger.Printf("Start service on port %s", config.listenPort.value)
 
