@@ -133,11 +133,13 @@ func tsGetPidInfo(pid string) (*tsPidInfo, error) {
 			return nil, mfErr
 		}
 
+/*
 		ts.Pages, mfErr = tsGetPagesFromPids(ts.Pages)
 		if mfErr != nil {
 			logger.Printf("tsGetPagesFromPids() failed: [%s]", mfErr.Error())
 			return nil, mfErr
 		}
+*/
 
 		return &ts, nil
 	}
@@ -161,10 +163,10 @@ func tsGetMetadataPidInfo(ocr ocrInfo) (*tsPidInfo, error) {
 		return nil, errors.New("Metadata PID does not have any pages")
 	}
 
-    // check if this is ocr-able: FIXME (DCMD-634)
+	// check if this is ocr-able: FIXME (DCMD-634)
 	ts.isOcrable = false
-    //if ts.Pid.OcrCandidate == true {
-    if ts.Pid.OcrHint == "Regular Font" || ts.Pid.OcrHint == "Modern Font" {
+	//if ts.Pid.OcrHint == "Regular Font" || ts.Pid.OcrHint == "Modern Font" {
+	if ts.Pid.OcrCandidate == true {
 		if ts.Pid.TextSource == "" || ts.Pid.TextSource == "ocr" {
 			ts.isOcrable = true
 		}
