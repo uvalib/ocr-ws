@@ -535,7 +535,6 @@ func awsSubmitWorkflow(req workflowRequest) error {
 		SetTaskList((&swf.TaskList{}).
 			SetName(config.awsSwfTaskList.value)).
 		SetChildPolicy("TERMINATE").
-		SetLambdaRole(config.awsLambdaRole.value).
 		SetExecutionStartToCloseTimeout(config.awsSwfWorkflowTimeout.value).
 		SetTaskStartToCloseTimeout(config.awsSwfDecisionTimeout.value).
 		SetInput(string(input))
