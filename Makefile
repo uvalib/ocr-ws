@@ -2,8 +2,7 @@
 SRCDIR = cmd
 BINDIR = bin
 PKGDOCKER = ocr-ws
-PKGLAMBDA = lambda
-PACKAGES = $(PKGDOCKER) $(PKGLAMBDA)
+PACKAGES = $(PKGDOCKER)
 
 # go commands
 GOCMD = go
@@ -83,14 +82,6 @@ docker-vars:
 docker: docker-vars linux
 
 rebuild-docker: docker-vars rebuild-linux
-
-# lambda: make sure binary is linux
-lambda-vars:
-	$(eval PACKAGES = $(PKGLAMBDA))
-
-lambda: lambda-vars linux
-
-rebuild-lambda: lambda-vars rebuild-linux
 
 # maintenance rules
 fmt:
