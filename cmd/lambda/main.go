@@ -26,7 +26,6 @@ type lambdaRequest struct {
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
 	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
-	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
