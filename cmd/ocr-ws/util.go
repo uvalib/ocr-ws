@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -162,4 +163,14 @@ func newUUID() string {
 	u := uuid.Must(uuid.NewV4())
 
 	return u.String()
+}
+
+func countsToString(m map[string]int) string {
+	b := new(bytes.Buffer)
+
+	for key, value := range m {
+		fmt.Fprintf(b, "%s x %d; ", key, value)
+	}
+
+	return b.String()
 }
