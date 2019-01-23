@@ -317,11 +317,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// decision(s): if lambdas recently failed/timed out, schedule them to be rerun; otherwise
 	// send an empty decision (waits for another event to prompt a new decision task)
 	default:
-		var uniqueEventTypes []string
-		for _, e := range info.recentEvents {
-			uniqueEventTypes = appendStringIfMissing(uniqueEventTypes, *e.EventType)
-		}
-		logger.Printf("[%s] unique recent events: [%s]", info.workflowId, strings.Join(uniqueEventTypes, ", "))
 
 	EventsProcessingLoop:
 		for _, e := range info.recentEvents {
