@@ -165,9 +165,13 @@ func tsGetMetadataPidInfo(ocr ocrInfo) (*tsPidInfo, error) {
 
 	// check if this is ocr-able: FIXME (DCMD-634)
 	ts.isOcrable = false
-	//if ts.Pid.OcrHint == "Regular Font" || ts.Pid.OcrHint == "Modern Font" {
 	if ts.Pid.OcrCandidate == true {
 		if ts.Pid.TextSource == "" || ts.Pid.TextSource == "ocr" {
+			ts.isOcrable = true
+		}
+	} else {
+		// fallback for tracksysdev until it has the new API
+		if ts.Pid.OcrHint == "Regular Font" || ts.Pid.OcrHint == "Modern Font" {
 			ts.isOcrable = true
 		}
 	}
