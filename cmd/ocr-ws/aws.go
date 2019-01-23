@@ -121,7 +121,16 @@ func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent
 
 	for _, e := range events {
 		if eventId == *e.EventId {
-			//logger.Printf("found event id %d at index %d", eventId, i)
+			return e
+		}
+	}
+
+	return nil
+}
+
+func awsEventWithType(events []*swf.HistoryEvent, eventType string) *swf.HistoryEvent {
+	for _, e := range events {
+		if eventType == *e.EventType {
 			return e
 		}
 	}
@@ -264,7 +273,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 	// start of workflow
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
-	case lastEventType == "WorkflowExecutionStarted":
+	//case lastEventType == "WorkflowExecutionStarted":
+	case recentCounts["WorkflowExecutionStarted"] > 0:
 		//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
 		logger.Printf("[%s] scheduling %d lambdas...", info.workflowId, len(info.req.Pages))
 
@@ -293,8 +303,15 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// completion condition (success): number of successful lambda executions = number of pids
 	// decision: complete the workflow
 	case len(info.ocrResults) == len(info.req.Pages):
-		decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("success"))
-		awsFinalizeSuccess(info)
+		// did a previous completion attempt fail?  try, try again
+		if e := awsEventWithType(info.recentEvents, "CompleteWorkflowExecutionFailed"); e != nil {
+			a := e.CompleteWorkflowExecutionFailedEventAttributes
+			logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowId, *a.Cause)
+			decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
+		} else {
+			decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("success"))
+			awsFinalizeSuccess(info)
+		}
 
 	// middle of the workflow -- typically this occurs when lambdas complete/fail/timeout
 	// decision(s): if lambdas recently failed/timed out, schedule them to be rerun; otherwise
@@ -324,6 +341,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				break EventsProcessingLoop
 			}
 
+/*
+			// HANDLED ABOVE in the successful completion condition, as we will never reach this point if this occurs
+
 			// attempt to complete the workflow failed: ???
 			// decision(s): ???
 			if t == "CompleteWorkflowExecutionFailed" {
@@ -332,6 +352,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
 				break EventsProcessingLoop
 			}
+*/
 
 			// attempt to fail the workflow failed: ???
 			// decision(s): ???
