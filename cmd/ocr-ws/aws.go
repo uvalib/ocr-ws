@@ -36,7 +36,6 @@ type decisionInfo struct {
 type ocrPageInfo struct {
 	Pid      string `json:"p,omitempty"`
 	Filename string `json:"f,omitempty"`
-	//Title    string `json:"t,omitempty"`
 }
 
 type workflowRequest struct {
@@ -55,7 +54,6 @@ type lambdaRequest struct {
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
 	Pid       string `json:"pid,omitempty"`       // pid of this master_file image
-	//Title     string `json:"title,omitempty"`     // for workflow tracking; unused in lambda
 }
 
 type lambdaResponse struct {
@@ -155,7 +153,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 			continue
 		}
 
-		// get pid/title from original request
+		// get pid from original request
 		o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
 		origLambdaInput := *o.LambdaFunctionScheduledEventAttributes.Input
 
@@ -166,7 +164,6 @@ func awsFinalizeSuccess(info decisionInfo) {
 			continue
 		}
 
-		//res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, title: lambdaReq.Title, text: lambdaRes.Text})
 		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, text: lambdaRes.Text})
 	}
 
@@ -242,8 +239,13 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 	logger.Printf("[%s] lambdas completed: %d / %d", info.workflowId, len(info.ocrResults), len(info.req.Pages))
 
-	lastEvent := info.recentEvents[len(info.recentEvents)-1]
-	lastEventType := *lastEvent.EventType
+	recentCounts := make(map[string]int)
+	var lastEventType string
+	for _, e := range info.recentEvents {
+		recentCounts[*e.EventType]++
+		lastEventType = *e.EventType
+	}
+	logger.Printf("[%s] recent events: %s", info.workflowId, countsToString(recentCounts))
 	logger.Printf("[%s] last event type: [%s]", info.workflowId, lastEventType)
 
 	// we can now make decisions about the workflow:
@@ -274,7 +276,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Key = getS3Filename(info.req.ReqID, page.Filename)
 			req.ParentPid = info.req.Pid
 			req.Pid = page.Pid
-			//req.Title = page.Title
 
 			input, jsonErr := json.Marshal(req)
 			if jsonErr != nil {
@@ -338,8 +339,14 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				a := e.FailWorkflowExecutionFailedEventAttributes
 				logger.Printf("[%s] fail workflow execution failed (%s)", info.workflowId, *a.Cause)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("FAILURE", "fail workflow execution failed"))
-				awsFinalizeFailure(info, "OCR generation process failed (could not fail process)")
 				break EventsProcessingLoop
+			}
+
+			// attempt to start a timer failed: ???
+			// decision(s): ???
+			if t == "StartTimerFailed" {
+				a := e.StartTimerFailedEventAttributes
+				logger.Printf("[%s] start timer failed (%s)", info.workflowId, *a.Cause)
 			}
 
 			// if this a recently failed lambda execution, determine what to do with it
@@ -428,20 +435,19 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	}
 
 	// quick check to ensure all decisions made appear valid
-	if lastEventType == "WorkflowExecutionStarted" {
-		logger.Printf("[%s] decision: [ScheduleLambdaFunction x %d]", info.workflowId, len(decisions))
-	}
 
+	decisionCounts := make(map[string]int)
 	for _, d := range decisions {
+		decisionCounts[*d.DecisionType]++
+
 		if err := d.Validate(); err != nil {
 			logger.Printf("[%s] decision validation error: [%s]", info.workflowId, err.Error())
 			return
 		}
-
-		if lastEventType != "WorkflowExecutionStarted" {
-			logger.Printf("[%s] decision: [%s]", info.workflowId, *d.DecisionType)
-		}
 	}
+	logger.Printf("[%s] decision(s): %s", info.workflowId, countsToString(decisionCounts))
+
+	// build, validate, and send response
 
 	respParams := (&swf.RespondDecisionTaskCompletedInput{}).
 		SetDecisions(decisions).
@@ -455,17 +461,15 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	_, respErr := svc.RespondDecisionTaskCompleted(respParams)
 
 	if respErr != nil {
-		logger.Printf("[%s] responding error: [%s]", info.workflowId, respErr.Error())
+		logger.Printf("[%s] respond error: [%s]", info.workflowId, respErr.Error())
 		return
 	}
-
-	//logger.Printf("[%s] respond response: [%s]", info.workflowId, resp.GoString())
 }
 
 func awsPollForDecisionTasks() {
 	svc := swf.New(sess)
 
-	random = rand.New(rand.New(rand.NewSource(time.Now().UnixNano())))
+	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for {
 		var info decisionInfo
@@ -665,7 +669,6 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Bucket = config.awsBucketName.value
 
 	for _, page := range ocr.ts.Pages {
-		//req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Title: page.Title, Filename: page.Filename})
 		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Filename: page.Filename})
 	}
 
