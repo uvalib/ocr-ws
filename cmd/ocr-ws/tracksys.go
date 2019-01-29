@@ -147,8 +147,8 @@ func tsGetPidInfo(pid string) (*tsPidInfo, error) {
 	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Pid.Type))
 }
 
-func tsGetMetadataPidInfo(ocr ocrInfo) (*tsPidInfo, error) {
-	ts, err := tsGetPidInfo(ocr.req.pid)
+func tsGetMetadataPidInfo(pid string) (*tsPidInfo, error) {
+	ts, err := tsGetPidInfo(pid)
 
 	if err != nil {
 		return nil, err

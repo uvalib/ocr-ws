@@ -38,6 +38,8 @@ func sqlRemoveDatabase(path string) {
 }
 
 func sqlAddEmail(path, email string) error {
+	os.MkdirAll(path, 0775)
+
 	// open database
 	db, err := sqlOpenDatabase(path)
 	if err != nil {

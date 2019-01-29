@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -46,7 +45,35 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	ocr.workDir = getWorkDir(ocr.subDir)
 	ocr.reqID = newUUID()
 
-	// See if tracking database already exists; if so, request is in progress
+	// check if forcing ocr... bypasses all checks except pid existence
+	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
+		ts, tsErr := tsGetPidInfo(ocr.req.pid)
+
+		if tsErr != nil {
+			logger.Printf("Tracksys API error: [%s]", tsErr.Error())
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
+			return
+		}
+
+		ocr.ts = ts
+
+		if ocr.req.lang != "" {
+			ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
+		}
+
+		sqlAddEmail(ocr.workDir, ocr.req.email)
+
+		fmt.Fprintf(w, "OK")
+
+		go generateOcr(ocr)
+
+		return
+	}
+
+	// normal request:
+
+	// see if tracking database already exists; if so, request is in progress
 	if sqlDatabaseExists(ocr.workDir) == true {
 		// request database already exists; don't start another request, just add email to requestor list
 		logger.Printf("Request already in progress; adding email to completion notification list")
@@ -55,7 +82,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		return
 	}
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -65,21 +92,6 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	}
 
 	ocr.ts = ts
-
-	// create work dir now (required for adding email to requestor list)
-	os.MkdirAll(ocr.workDir, 0775)
-
-	// check if forcing ocr
-
-	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
-		if ocr.req.lang != "" {
-			ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
-		}
-		sqlAddEmail(ocr.workDir, ocr.req.email)
-		fmt.Fprintf(w, "OK")
-		go generateOcr(ocr)
-		return
-	}
 
 	// check if ocr/transcription already exists; if so, just email now
 
@@ -158,7 +170,7 @@ func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -186,7 +198,7 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
