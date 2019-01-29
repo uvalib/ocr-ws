@@ -47,6 +47,7 @@ type configData struct {
 	awsSwfWorkflowTimeout     configStringItem
 	awsSwfDecisionTimeout     configStringItem
 	awsLambdaFunction         configStringItem
+	awsLambdaTimeout          configStringItem
 	awsBucketName             configStringItem
 }
 
@@ -76,6 +77,7 @@ func init() {
 	config.awsSwfWorkflowTimeout = configStringItem{value: "", configItem: configItem{flag: "O", env: "AWS_SWF_WORKFLOW_TIMEOUT", desc: "aws swf workflow timeout"}}
 	config.awsSwfDecisionTimeout = configStringItem{value: "", configItem: configItem{flag: "E", env: "AWS_SWF_DECISION_TIMEOUT", desc: "aws swf decision timeout"}}
 	config.awsLambdaFunction = configStringItem{value: "", configItem: configItem{flag: "F", env: "AWS_LAMBDA_FUNCTION", desc: "aws lambda function"}}
+	config.awsLambdaTimeout = configStringItem{value: "", configItem: configItem{flag: "I", env: "AWS_LAMBDA_TIMEOUT", desc: "aws lambda timeout"}}
 	config.awsBucketName = configStringItem{value: "", configItem: configItem{flag: "B", env: "AWS_BUCKET_NAME", desc: "aws bucket name"}}
 }
 
@@ -137,6 +139,7 @@ func getConfigValues() {
 	flagStringVar(&config.awsSwfWorkflowTimeout)
 	flagStringVar(&config.awsSwfDecisionTimeout)
 	flagStringVar(&config.awsLambdaFunction)
+	flagStringVar(&config.awsLambdaTimeout)
 	flagStringVar(&config.awsBucketName)
 
 	flag.Parse()
@@ -164,6 +167,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.awsSwfWorkflowTimeout) && configOK
 	configOK = ensureConfigStringSet(&config.awsSwfDecisionTimeout) && configOK
 	configOK = ensureConfigStringSet(&config.awsLambdaFunction) && configOK
+	configOK = ensureConfigStringSet(&config.awsLambdaTimeout) && configOK
 	configOK = ensureConfigStringSet(&config.awsBucketName) && configOK
 
 	if config.useHttps.value == true {
@@ -199,5 +203,6 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] awsSwfWorkflowTimeout     = [%s]", config.awsSwfWorkflowTimeout.value)
 	logger.Printf("[CONFIG] awsSwfDecisionTimeout     = [%s]", config.awsSwfDecisionTimeout.value)
 	logger.Printf("[CONFIG] awsLambdaFunction         = [%s]", config.awsLambdaFunction.value)
+	logger.Printf("[CONFIG] awsLambdaTimeout          = [%s]", config.awsLambdaTimeout.value)
 	logger.Printf("[CONFIG] awsBucketName             = [%s]", config.awsBucketName.value)
 }
