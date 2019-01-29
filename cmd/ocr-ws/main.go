@@ -42,7 +42,6 @@ func main() {
 	mux.GET("/ocr/:pid", ocrGenerateHandler)
 	mux.GET("/ocr/:pid/status", ocrStatusHandler)
 	mux.GET("/ocr/:pid/text", ocrTextHandler)
-	mux.GET("/healthcheck", healthCheckHandler)
 	logger.Printf("Start service on port %s", config.listenPort.value)
 
 	if config.useHttps.value == true {
