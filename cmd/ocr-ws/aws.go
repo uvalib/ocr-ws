@@ -428,7 +428,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					count++
 
 					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
-					logger.Printf("[%s] input: %s", origLambdaInput)
+					logger.Printf("[%s] input: %s", info.workflowId, origLambdaInput)
 
 					decisions = append(decisions, awsScheduleLambdaFunction(origLambdaInput, strconv.Itoa(count)))
 				} else {
