@@ -393,7 +393,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
 				origLambdaEvent = *a.ScheduledEventId
 
-				logger.Printf("[%s] lambda timed out after %s seconds (%s)", info.workflowId, *o.LambdaFunctionScheduledEventAttributes.StartToCloseTimeout, *a.TimeoutType)
+				timeoutStr := ""
+				if o.LambdaFunctionScheduledEventAttributes.StartToCloseTimeout != nil {
+					timeoutStr = fmt.Sprintf(" after %s seconds", *o.LambdaFunctionScheduledEventAttributes.StartToCloseTimeout)
+				}
+
+				logger.Printf("[%s] lambda timed out%s (%s)", info.workflowId, timeoutStr, *a.TimeoutType)
 			}
 
 			// if this a timer that fired, rerun the associated lambda
