@@ -98,7 +98,7 @@ func awsScheduleLambdaFunction(input, control string) *swf.Decision {
 		SetScheduleLambdaFunctionDecisionAttributes((&swf.ScheduleLambdaFunctionDecisionAttributes{}).
 			SetControl(control).
 			SetName(config.awsLambdaFunction.value).
-			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
+//			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
 			SetId(newUUID()).
 			SetInput(input))
 
