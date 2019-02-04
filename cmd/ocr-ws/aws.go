@@ -98,7 +98,7 @@ func awsScheduleLambdaFunction(input, control string) *swf.Decision {
 		SetScheduleLambdaFunctionDecisionAttributes((&swf.ScheduleLambdaFunctionDecisionAttributes{}).
 			SetControl(control).
 			SetName(config.awsLambdaFunction.value).
-//			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
+			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
 			SetId(newUUID()).
 			SetInput(input))
 
@@ -364,6 +364,25 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			if t == "StartTimerFailed" {
 				a := e.StartTimerFailedEventAttributes
 				logger.Printf("[%s] start timer failed (%s)", info.workflowId, *a.Cause)
+				continue EventsProcessingLoop
+			}
+
+			// signal sent to workflow
+			// decisions(s): ???
+			if t == "WorkflowExecutionSignaled" {
+				a := e.WorkflowExecutionSignaledEventAttributes
+				logger.Printf("[%s] workflow execution signaled (%s) - (%s)", info.workflowId, *a.SignalName, *a.Input)
+				continue EventsProcessingLoop
+			}
+
+			// cancel request sent to workflow
+			// decisions(s): ???
+			if t == "WorkflowExecutionCancelRequested" {
+				a := e.WorkflowExecutionCancelRequestedEventAttributes
+				logger.Printf("[%s] workflow cancellation requested (%s)", info.workflowId, *a.Cause)
+				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution canceled"))
+				awsFinalizeFailure(info, "OCR generation process failed (process was canceled)")
+				break EventsProcessingLoop
 			}
 
 			// if this a recently failed lambda execution, determine what to do with it
