@@ -216,7 +216,7 @@ func tsPostText(pid, text string) error {
 		return nil
 	}
 
-	logger.Printf("[%s] posting text with length %d:\n%s\n", pid, len(text), text)
+	//logger.Printf("[%s] posting text with length %d:\n%s\n", pid, len(text), text)
 
 	form := url.Values{
 		"text": {text},
@@ -230,6 +230,8 @@ func tsPostText(pid, text string) error {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("Failed to create new fulltext post request")
 	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	logger.Printf("[%s] req: %+v", pid, req)
 
