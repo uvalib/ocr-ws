@@ -216,6 +216,8 @@ func tsPostText(pid, text string) error {
 		return nil
 	}
 
+	logger.Printf("[%s] posting text with length %d:\n%s\n", pid, len(text), text)
+
 	form := url.Values{
 		"text": {text},
 	}
