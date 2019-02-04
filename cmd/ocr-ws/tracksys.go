@@ -231,6 +231,8 @@ func tsPostText(pid, text string) error {
 		return errors.New("Failed to create new fulltext post request")
 	}
 
+	logger.Printf("[%s] req: %+v", pid, req)
+
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
