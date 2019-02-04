@@ -379,7 +379,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decisions(s): ???
 			if t == "WorkflowExecutionCancelRequested" {
 				a := e.WorkflowExecutionCancelRequestedEventAttributes
-				logger.Printf("[%s] workflow cancellation requested (%s)", info.workflowId, *a.Cause)
+				logger.Printf("[%s] workflow cancellation requested", info.workflowId)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution canceled"))
 				awsFinalizeFailure(info, "OCR generation process failed (process was canceled)")
 				break EventsProcessingLoop
@@ -598,6 +598,9 @@ func awsSubmitWorkflow(req workflowRequest) error {
 }
 
 func awsDeleteImages(reqDir string) error {
+	logger.Printf("relying on S3 policies to remove original images")
+	return
+
 	svc := s3.New(sess)
 
 	logger.Printf("deleting: [%s]", reqDir)
