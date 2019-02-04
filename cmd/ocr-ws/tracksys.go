@@ -216,8 +216,6 @@ func tsPostText(pid, text string) error {
 		return nil
 	}
 
-	//logger.Printf("[%s] posting text with length %d:\n%s\n", pid, len(text), text)
-
 	form := url.Values{
 		"text": {text},
 	}
@@ -231,10 +229,6 @@ func tsPostText(pid, text string) error {
 		return errors.New("Failed to create new fulltext post request")
 	}
 
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	logger.Printf("[%s] req: %+v", pid, req)
-
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
@@ -244,7 +238,7 @@ func tsPostText(pid, text string) error {
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("[%s] posted ocr; response: [%s]", pid, buf)
+	logger.Printf("[%s] posted %d-character ocr; response: [%s]", pid, len(text), buf)
 
 	return nil
 }
