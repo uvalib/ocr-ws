@@ -599,7 +599,7 @@ func awsSubmitWorkflow(req workflowRequest) error {
 
 func awsDeleteImages(reqDir string) error {
 	logger.Printf("relying on S3 policies to remove original images")
-	return
+	return nil
 
 	svc := s3.New(sess)
 
