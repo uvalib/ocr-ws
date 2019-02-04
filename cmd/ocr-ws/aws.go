@@ -378,7 +378,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// cancel request sent to workflow
 			// decisions(s): ???
 			if t == "WorkflowExecutionCancelRequested" {
-				a := e.WorkflowExecutionCancelRequestedEventAttributes
+				//a := e.WorkflowExecutionCancelRequestedEventAttributes
 				logger.Printf("[%s] workflow cancellation requested", info.workflowId)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution canceled"))
 				awsFinalizeFailure(info, "OCR generation process failed (process was canceled)")
