@@ -237,8 +237,8 @@ func tsPostText(pid, text string) error {
 
 	defer res.Body.Close()
 
-	//buf, _ := ioutil.ReadAll(res.Body)
-	//logger.Printf("Posted OCR; response: [%s]", buf)
+	buf, _ := ioutil.ReadAll(res.Body)
+	logger.Printf("Posted OCR; response: [%s]", buf)
 
 	return nil
 }
