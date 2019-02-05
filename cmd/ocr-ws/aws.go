@@ -460,7 +460,9 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					// reduce dpi in steps of 100, going no lower than 100 dpi
 					dpi, _ := strconv.Atoi(req.Dpi)
-					req.Dpi = fmt.Sprintf("%d", maxOf(100, dpi - 100))
+					newDpi := fmt.Sprintf("%d", maxOf(100, dpi - 100))
+					logger.Printf("[%s] dpi: %s -> %s", info.workflowId, req.Dpi, newDpi)
+					req.Dpi = newDpi
 
 					input, jErr := json.Marshal(req)
 					if jErr != nil {
