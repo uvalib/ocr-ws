@@ -42,6 +42,7 @@ type workflowRequest struct {
 	Pid    string        `json:"pid,omitempty"`
 	Path   string        `json:"path,omitempty"`
 	Lang   string        `json:"lang,omitempty"`
+	Dpi    string        `json:"dpi,omitempty"`
 	ReqID  string        `json:"reqid,omitempty"`
 	Bucket string        `json:"bucket,omitempty"`
 	Pages  []ocrPageInfo `json:"pages,omitempty"`
