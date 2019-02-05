@@ -445,12 +445,33 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				count, _ := strconv.Atoi(origLambdaCount)
 
 				if origLambdaInput != "" {
-					// rerun the referenced lambda
+					// rerun the referenced lambda, with reduced dpi
 
 					count++
 
+					req := lambdaRequest{}
+
+					if jErr := json.Unmarshal([]byte(origLambdaInput), &req); jErr != nil {
+						logger.Printf("Unmarshal() failed [lambda retry]: %s", jErr.Error())
+						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda unmarshal failed"))
+						awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
+						break
+					}
+
+					// reduce dpi in steps of 50, going no lower than 100 dpi
+					dpi, _ := strconv.Atoi(info.req.Dpi)
+					req.Dpi = fmt.Sprintf("%d", maxOf(100, dpi - 50))
+
+					input, jErr := json.Marshal(req)
+					if jErr != nil {
+						logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jErr.Error())
+						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-marshal failed"))
+						awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
+						break
+					}
+
 					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
-					logger.Printf("[%s] input: %s", info.workflowId, origLambdaInput)
+					logger.Printf("[%s] input: %s", info.workflowId, input)
 
 					decisions = append(decisions, awsScheduleLambdaFunction(origLambdaInput, strconv.Itoa(count)))
 				} else {

@@ -27,8 +27,9 @@ type configData struct {
 	listenPort                configStringItem
 	storageDir                configStringItem
 	archiveDir                configStringItem
-	concurrentUploads         configStringItem
 	lambdaAttempts            configStringItem
+	concurrentUploads         configStringItem
+	convertedImageDpi         configStringItem
 	useHttps                  configBoolItem
 	sslCrt                    configStringItem
 	sslKey                    configStringItem
@@ -57,8 +58,9 @@ func init() {
 	config.listenPort = configStringItem{value: "", configItem: configItem{flag: "l", env: "OCRWS_LISTEN_PORT", desc: "listen port"}}
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
-	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
+	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
+	config.convertedImageDpi = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_CONVERTED_IMAGE_DPI", desc: "dpi of converted image to scan"}}
 	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
 	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
 	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
@@ -119,8 +121,9 @@ func getConfigValues() {
 	flagStringVar(&config.listenPort)
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.archiveDir)
-	flagStringVar(&config.concurrentUploads)
 	flagStringVar(&config.lambdaAttempts)
+	flagStringVar(&config.concurrentUploads)
+	flagStringVar(&config.convertedImageDpi)
 	flagBoolVar(&config.useHttps)
 	flagStringVar(&config.sslCrt)
 	flagStringVar(&config.sslKey)
@@ -150,8 +153,9 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.listenPort) && configOK
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
-	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
+	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
+	configOK = ensureConfigStringSet(&config.convertedImageDpi) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
@@ -185,6 +189,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] archiveDir                = [%s]", config.archiveDir.value)
 	logger.Printf("[CONFIG] lambdaAttempts            = [%s]", config.lambdaAttempts.value)
 	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
+	logger.Printf("[CONFIG] convertedImageDpi         = [%s]", config.convertedImageDpi.value)
 	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
 	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)

@@ -47,7 +47,12 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	ocr.workDir = getWorkDir(ocr.subDir)
 	ocr.reqID = newUUID()
 
-	// validate lang/dpi?
+	// set default conversion dpi if not specified, or not within a reasonable range
+	// see: https://blogs.loc.gov/thesignal/2013/07/you-say-you-want-a-resolution-how-many-dpippi-is-too-much/
+	dpi, _ := strconv.Atoi(ocr.req.dpi)
+	if dpi < 100 || dpi > 1200 {
+		ocr.req.dpi = config.convertedImageDpi.value
+	}
 
 	// check if forcing ocr... bypasses all checks except pid existence (e.g. allows individual master_file ocr)
 	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
