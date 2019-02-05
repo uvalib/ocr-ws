@@ -475,7 +475,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
 					logger.Printf("[%s] new input: %s", info.workflowId, input)
 
-					decisions = append(decisions, awsScheduleLambdaFunction(input, strconv.Itoa(count)))
+					decisions = append(decisions, awsScheduleLambdaFunction(string(input), strconv.Itoa(count)))
 				} else {
 					// start a timer referencing the original lambda to be rerun, with exponential backoff based on execution count
 
