@@ -50,6 +50,7 @@ type workflowRequest struct {
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
 	Lang      string `json:"lang,omitempty"`      // language to use for ocr
+	Dpi       string `json:"dpi,omitempty"`       // converted image dpi
 	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
@@ -283,6 +284,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req := lambdaRequest{}
 
 			req.Lang = info.req.Lang
+			req.Dpi = info.req.Dpi
 			req.Bucket = info.req.Bucket
 			req.Key = getS3Filename(info.req.ReqID, page.Filename)
 			req.ParentPid = info.req.Pid
@@ -710,6 +712,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Pid = ocr.req.pid
 	req.Path = ocr.subDir
 	req.Lang = ocr.ts.Pid.OcrLanguageHint
+	req.Dpi = ocr.req.dpi
 	req.ReqID = ocr.reqID
 	req.Bucket = config.awsBucketName.value
 
