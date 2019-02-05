@@ -16,6 +16,7 @@ type ocrRequest struct {
 	email string
 	force string
 	lang  string
+	dpi   string
 }
 
 type ocrInfo struct {
@@ -39,13 +40,16 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	ocr.req.email = r.URL.Query().Get("email")
 	ocr.req.force = r.URL.Query().Get("force")
 	ocr.req.lang = r.URL.Query().Get("lang")
+	ocr.req.dpi = r.URL.Query().Get("dpi")
 
 	// save info generated from the original request
 	ocr.subDir = ocr.req.pid
 	ocr.workDir = getWorkDir(ocr.subDir)
 	ocr.reqID = newUUID()
 
-	// check if forcing ocr... bypasses all checks except pid existence
+	// validate lang/dpi?
+
+	// check if forcing ocr... bypasses all checks except pid existence (e.g. allows individual master_file ocr)
 	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
 		ts, tsErr := tsGetPidInfo(ocr.req.pid)
 
@@ -57,10 +61,6 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		}
 
 		ocr.ts = ts
-
-		if ocr.req.lang != "" {
-			ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
-		}
 
 		sqlAddEmail(ocr.workDir, ocr.req.email)
 
@@ -238,6 +238,11 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 }
 
 func generateOcr(ocr ocrInfo) {
+	// check for language override
+	if ocr.req.lang != "" {
+		ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
+	}
+
 	if err := awsGenerateOcr(ocr); err != nil {
 		logger.Printf("generateOcr() failed: [%s]", err.Error())
 
