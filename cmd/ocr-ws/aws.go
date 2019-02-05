@@ -461,6 +461,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					// reduce dpi in steps of 100, going no lower than 100 dpi
 					dpi, _ := strconv.Atoi(req.Dpi)
 					newDpi := fmt.Sprintf("%d", maxOf(100, dpi - 100))
+					logger.Printf("[%s] old input: %s", info.workflowId, origLambdaInput)
 					logger.Printf("[%s] dpi: %s -> %s", info.workflowId, req.Dpi, newDpi)
 					req.Dpi = newDpi
 
@@ -473,7 +474,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					}
 
 					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
-					logger.Printf("[%s] input: %s", info.workflowId, input)
+					logger.Printf("[%s] new input: %s", info.workflowId, input)
 
 					decisions = append(decisions, awsScheduleLambdaFunction(origLambdaInput, strconv.Itoa(count)))
 				} else {
