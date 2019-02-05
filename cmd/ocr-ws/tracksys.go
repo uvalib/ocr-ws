@@ -209,8 +209,14 @@ func tsGetText(pid string) (string, error) {
 }
 
 func textSnippet(text string) string {
-	s := strings.Replace(text, "\n", "\\n", 1)
+	s := text
+
+	s = strings.Replace(s, "\n", "\\n", -1)
+	s = strings.Replace(s, "\r", "\\r", -1)
+	s = strings.Replace(s, "\t", "\\t", -1)
+
 	s = fmt.Sprintf("%-32s", s)
+
 	return s[:32]
 }
 
