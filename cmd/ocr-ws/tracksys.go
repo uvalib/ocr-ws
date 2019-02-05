@@ -208,6 +208,12 @@ func tsGetText(pid string) (string, error) {
 	return string(text), nil
 }
 
+func textSnippet(text string) string {
+	s := strings.Replace(text, "\n", "\\n", 1)
+	s = fmt.Sprintf("%-32s", s)
+	return s[:32]
+}
+
 func tsPostText(pid, text string) error {
 	// if url not set, just skip over this
 
@@ -238,7 +244,7 @@ func tsPostText(pid, text string) error {
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("[%s] posted %d-character ocr; response: [%s]", pid, len(text), buf)
+	logger.Printf("[%s] posted ocr: [%s...] (%d); response: [%s]", pid, textSnippet(text), len(text), buf)
 
 	return nil
 }
