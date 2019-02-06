@@ -13,6 +13,7 @@ import (
 
 type ocrRequest struct {
 	pid   string
+	unit  string
 	email string
 	force string
 	lang  string
@@ -37,6 +38,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
+	ocr.req.unit = params.ByName("unit")
 	ocr.req.email = r.URL.Query().Get("email")
 	ocr.req.force = r.URL.Query().Get("force")
 	ocr.req.lang = r.URL.Query().Get("lang")
@@ -56,7 +58,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	// check if forcing ocr... bypasses all checks except pid existence (e.g. allows individual master_file ocr)
 	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
-		ts, tsErr := tsGetPidInfo(ocr.req.pid)
+		ts, tsErr := tsGetPidInfo(ocr.req.pid, ocr.req.unit)
 
 		if tsErr != nil {
 			logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -87,7 +89,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		return
 	}
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -174,8 +176,9 @@ func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
+	ocr.req.unit = params.ByName("unit")
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
@@ -202,8 +205,9 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
+	ocr.req.unit = params.ByName("unit")
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid)
+	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
 		logger.Printf("Tracksys API error: [%s]", tsErr.Error())

@@ -30,9 +30,19 @@ type tsPidInfo struct {
 	isOcrable bool
 }
 
-func tsGetPagesFromManifest(pid string) ([]tsGenericPidInfo, error) {
-	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetManifestTemplate.value)
-	url = strings.Replace(url, "{PID}", pid, 1)
+func tsApiUrlForPidUnit(api, pid, unit string) string {
+	url := fmt.Sprintf("%s%s", config.tsApiHost.value, api)
+	url = strings.Replace(url, "{PID}", pid, -1)
+
+	if unit != "" {
+		url = fmt.Sprintf("%s?unit=%s", url, unit)
+	}
+
+	return url
+}
+
+func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
+	url := tsApiUrlForPidUnit(config.tsApiGetManifestTemplate.value, pid, unit)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -65,27 +75,8 @@ func tsGetPagesFromManifest(pid string) ([]tsGenericPidInfo, error) {
 	return tsPages, nil
 }
 
-func tsGetPagesFromPids(oldPages []tsGenericPidInfo) ([]tsGenericPidInfo, error) {
-	var tsPages []tsGenericPidInfo
-
-	for i, p := range oldPages {
-		tsPage, err := tsGetPidInfo(p.Pid)
-
-		if err != nil {
-			return nil, err
-		}
-
-		logger.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(oldPages), tsPage.Pid.Pid, tsPage.Pid.Filename, tsPage.Pid.Title, tsPage.Pid.TextSource)
-
-		tsPages = append(tsPages, tsPage.Pid)
-	}
-
-	return tsPages, nil
-}
-
-func tsGetPidInfo(pid string) (*tsPidInfo, error) {
-	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetPidTemplate.value)
-	url = strings.Replace(url, "{PID}", pid, 1)
+func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
+	url := tsApiUrlForPidUnit(config.tsApiGetPidTemplate.value, pid, "")
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -127,19 +118,11 @@ func tsGetPidInfo(pid string) (*tsPidInfo, error) {
 	case strings.Contains(ts.Pid.Type, "metadata"):
 		var mfErr error
 
-		ts.Pages, mfErr = tsGetPagesFromManifest(pid)
+		ts.Pages, mfErr = tsGetPagesFromManifest(pid, unit)
 		if mfErr != nil {
 			logger.Printf("tsGetPagesFromManifest() failed: [%s]", mfErr.Error())
 			return nil, mfErr
 		}
-
-/*
-		ts.Pages, mfErr = tsGetPagesFromPids(ts.Pages)
-		if mfErr != nil {
-			logger.Printf("tsGetPagesFromPids() failed: [%s]", mfErr.Error())
-			return nil, mfErr
-		}
-*/
 
 		return &ts, nil
 	}
@@ -147,8 +130,8 @@ func tsGetPidInfo(pid string) (*tsPidInfo, error) {
 	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Pid.Type))
 }
 
-func tsGetMetadataPidInfo(pid string) (*tsPidInfo, error) {
-	ts, err := tsGetPidInfo(pid)
+func tsGetMetadataPidInfo(pid, unit string) (*tsPidInfo, error) {
+	ts, err := tsGetPidInfo(pid, unit)
 
 	if err != nil {
 		return nil, err
@@ -180,8 +163,7 @@ func tsGetMetadataPidInfo(pid string) (*tsPidInfo, error) {
 }
 
 func tsGetText(pid string) (string, error) {
-	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiGetFullTextTemplate.value)
-	url = strings.Replace(url, "{PID}", pid, 1)
+	url := tsApiUrlForPidUnit(config.tsApiGetFullTextTemplate.value, pid, "")
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -232,8 +214,7 @@ func tsPostText(pid, text string) error {
 		"text": {text},
 	}
 
-	url := fmt.Sprintf("%s%s", config.tsApiHost.value, config.tsApiPostFullTextTemplate.value)
-	url = strings.Replace(url, "{PID}", pid, 1)
+	url := tsApiUrlForPidUnit(config.tsApiPostFullTextTemplate.value, pid, "")
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
