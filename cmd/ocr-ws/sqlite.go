@@ -16,9 +16,9 @@ func sqlFileName(path string) string {
 func sqlDatabaseExists(path string) bool {
 	dbFile := sqlFileName(path)
 
-    if _, err := os.Stat(dbFile); err == nil {
-        return true
-    }
+	if _, err := os.Stat(dbFile); err == nil {
+		return true
+	}
 
 	return false
 }
