@@ -148,7 +148,7 @@ func processOcrFailure(res ocrResultsInfo) {
 
 	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
 		for _, c := range callbacks {
-			tsJobStatusCallback(c, "fail", res.details, "earlier", "now")
+			tsJobStatusCallback(c, "fail", res.details, "2019-02-07 11:41:23 AM", "2019-02-07 11:42:23 AM")
 		}
 	} else {
 		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
