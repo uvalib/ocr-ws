@@ -38,7 +38,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = params.ByName("unit")
+	ocr.req.unit = r.URL.Query().Get("unit")
 	ocr.req.email = r.URL.Query().Get("email")
 	ocr.req.force = r.URL.Query().Get("force")
 	ocr.req.lang = r.URL.Query().Get("lang")
@@ -176,7 +176,7 @@ func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = params.ByName("unit")
+	ocr.req.unit = r.URL.Query().Get("unit")
 
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
@@ -205,7 +205,7 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 
 	// save fields from original request
 	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = params.ByName("unit")
+	ocr.req.unit = r.URL.Query().Get("unit")
 
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
@@ -226,13 +226,13 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 	}
 
 	status := struct {
-		HasOcr bool `json:"has_ocr"`
+		HasOcr           bool `json:"has_ocr"`
 		HasTranscription bool `json:"has_transcription"`
-		IsOcrCandidate bool `json:"is_ocr_candidate"`
+		IsOcrCandidate   bool `json:"is_ocr_candidate"`
 	}{
-		HasOcr: hasOcr,
+		HasOcr:           hasOcr,
 		HasTranscription: hasTranscription,
-		IsOcrCandidate: ts.isOcrable,
+		IsOcrCandidate:   ts.isOcrable,
 	}
 
 	output, jsonErr := json.Marshal(status)
