@@ -38,6 +38,8 @@ func tsApiUrlForPidUnit(api, pid, unit string) string {
 		url = fmt.Sprintf("%s?unit=%s", url, unit)
 	}
 
+	logger.Printf("url: [%s]", url)
+
 	return url
 }
 
@@ -278,7 +280,7 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("posted job status; response: [%s]", buf)
+	logger.Printf("posted job status: [%s]; response: [%s]", string(output), buf)
 
 	return nil
 }
