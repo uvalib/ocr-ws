@@ -126,7 +126,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
 		for _, c := range callbacks {
-			tsJobStatusCallback(c, "success", "OCR completed successfully", "earlier", "now")
+			tsJobStatusCallback(c, "success", "OCR completed successfully", "2019-02-07 11:41:23 AM", "2019-02-07 11:42:23 AM")
 		}
 	} else {
 		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
