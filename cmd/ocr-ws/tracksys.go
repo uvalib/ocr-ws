@@ -242,15 +242,15 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 	// { status: success/fail, message: informative message, started: start_time, finished: finish_time }
 
 	jobstatus := struct {
-		status   string `json:"status"`
-		message  string `json:"message"`
-		started  string `json:"started"`
-		finished string `json:"finished"`
+		Status   string `json:"status,omitempty"`
+		Message  string `json:"message,omitempty"`
+		Started  string `json:"started,omitempty"`
+		Finished string `json:"finished,omitempty"`
 	}{
-		status:   status,
-		message:  message,
-		started:  started,
-		finished: finished,
+		Status:   status,
+		Message:  message,
+		Started:  started,
+		Finished: finished,
 	}
 
 	output, jsonErr := json.Marshal(jobstatus)
