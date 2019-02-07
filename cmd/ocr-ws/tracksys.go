@@ -235,3 +235,50 @@ func tsPostText(pid, text string) error {
 
 	return nil
 }
+
+func tsJobStatusCallback(api, status, message, started, finished string) error {
+	// { status: success/fail, message: informative message, started: start_time, finished: finish_time }
+
+	jobstatus := struct {
+		status   string `json:"status"`
+		message  string `json:"message"`
+		started  string `json:"started"`
+		finished string `json:"finished"`
+	}{
+		status:   status,
+		message:  message,
+		started:  started,
+		finished: finished,
+	}
+
+	output, jsonErr := json.Marshal(jobstatus)
+	if jsonErr != nil {
+		logger.Printf("Failed to serialize callback json: [%s]", jsonErr.Error())
+		return errors.New("Failed to serialze job status callback json")
+	}
+
+	form := url.Values{
+		"json": {string(output)},
+	}
+
+	url := tsApiUrlForPidUnit(api, "", "")
+
+	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	if reqErr != nil {
+		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		return errors.New("Failed to create new job status post request")
+	}
+
+	res, resErr := client.Do(req)
+	if resErr != nil {
+		logger.Printf("client.Do() failed: %s", resErr.Error())
+		return errors.New("Failed to receive job status post response")
+	}
+
+	defer res.Body.Close()
+
+	buf, _ := ioutil.ReadAll(res.Body)
+	logger.Printf("posted job status; response: [%s]", buf)
+
+	return nil
+}

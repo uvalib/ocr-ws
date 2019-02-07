@@ -116,15 +116,20 @@ func processOcrSuccess(res ocrResultsInfo) {
 		return
 	}
 
-	emails, err := sqlGetEmails(res.workDir)
-
-	if err != nil {
+	if emails, err := sqlGetEmails(res.workDir); err == nil {
+		for _, e := range emails {
+			emailResults(e, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
+		}
+	} else {
 		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
-		return
 	}
 
-	for _, e := range emails {
-		emailResults(e, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
+	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
+		for _, c := range callbacks {
+			tsJobStatusCallback(c, "fail", "OCR completed successfully", "earlier", "now")
+		}
+	} else {
+		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
 	}
 
 	os.RemoveAll(res.workDir)
@@ -133,15 +138,20 @@ func processOcrSuccess(res ocrResultsInfo) {
 func processOcrFailure(res ocrResultsInfo) {
 	logger.Printf("[%s] processing failed OCR", res.pid)
 
-	emails, err := sqlGetEmails(res.workDir)
-
-	if err != nil {
+	if emails, err := sqlGetEmails(res.workDir); err == nil {
+		for _, e := range emails {
+			emailResults(e, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
+		}
+	} else {
 		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
-		return
 	}
 
-	for _, e := range emails {
-		emailResults(e, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
+	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
+		for _, c := range callbacks {
+			tsJobStatusCallback(c, "fail", res.details, "earlier", "now")
+		}
+	} else {
+		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
 	}
 
 	os.RemoveAll(res.workDir)

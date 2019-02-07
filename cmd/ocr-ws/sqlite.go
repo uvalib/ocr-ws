@@ -37,7 +37,7 @@ func sqlRemoveDatabase(path string) {
 	os.Remove(dbFile)
 }
 
-func sqlAddEmail(path, email string) error {
+func sqlAddRecipients(path, email, callback string) error {
 	os.MkdirAll(path, 0775)
 
 	// open database
@@ -49,7 +49,7 @@ func sqlAddEmail(path, email string) error {
 	defer db.Close()
 
 	// attempt to create table, even if it exists
-	sqlStmt := `create table if not exists ocr_requests (email text);`
+	sqlStmt := `create table if not exists ocr_requests (email text, callback text);`
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
 		logger.Printf("[sql] failed to create requests table: [%s]", err.Error())
@@ -63,13 +63,13 @@ func sqlAddEmail(path, email string) error {
 		logger.Printf("[sql] failed to create transaction: [%s]", err.Error())
 		return errors.New("Failed to create request transaction")
 	}
-	stmt, err := tx.Prepare("insert into ocr_requests(email) values(?)")
+	stmt, err := tx.Prepare("insert into ocr_requests(email, callback) values(?, ?)")
 	if err != nil {
 		logger.Printf("[sql] failed to prepare transaction: [%s]", err.Error())
 		return errors.New("Failed to prepare request transaction")
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(email)
+	_, err = stmt.Exec(email, callback)
 	if err != nil {
 		logger.Printf("[sql] failed to execute transaction: [%s]", err.Error())
 		return errors.New("Failed to execute request transaction")
@@ -79,35 +79,36 @@ func sqlAddEmail(path, email string) error {
 	return nil
 }
 
-func sqlGetEmails(path string) ([]string, error) {
+func sqlGetRecipients(path, rtype string) ([]string, error) {
 	// open database
 	db, err := sqlOpenDatabase(path)
 	if err != nil {
-		logger.Printf("[sql] failed to open requests database when adding email: [%s]", err.Error())
+		logger.Printf("[sql] failed to open requests database when getting %ss: [%s]", rtype, err.Error())
 		return nil, errors.New("Failed to open requests database")
 	}
 	defer db.Close()
 
-	// grab unique emails
+	// grab unique values
 
-	var emails []string
+	var values []string
 
-	rows, err := db.Query("select email from ocr_requests;")
+	query := fmt.Sprintf("select %s from ocr_requests where %s != '';", rtype, rtype)
+	rows, err := db.Query(query)
 	if err != nil {
-		logger.Printf("[sql] failed to retrieve emails: [%s]", err.Error())
-		return nil, errors.New("Failed to retrieve requestor emails")
+		logger.Printf("[sql] failed to retrieve values: [%s]", err.Error())
+		return nil, errors.New(fmt.Sprintf("Failed to retrieve %ss", rtype))
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var email string
-		err = rows.Scan(&email)
+		var value string
+		err = rows.Scan(&value)
 		if err != nil {
-			logger.Printf("[sql] failed to scan email: [%s]", err.Error())
-			return nil, errors.New("Failed to scan email address")
+			logger.Printf("[sql] failed to scan value: [%s]", err.Error())
+			return nil, errors.New(fmt.Sprintf("Failed to scan %s", rtype))
 		}
 
-		emails = appendStringIfMissing(emails, email)
+		values = appendStringIfMissing(values, value)
 	}
 
 	// check for errors
@@ -115,8 +116,16 @@ func sqlGetEmails(path string) ([]string, error) {
 	err = rows.Err()
 	if err != nil {
 		logger.Printf("[sql] select query failed: [%s]", err.Error())
-		return nil, errors.New("Failed to select requestor emails")
+		return nil, errors.New(fmt.Sprintf("Failed to select %ss", rtype))
 	}
 
-	return emails, nil
+	return values, nil
+}
+
+func sqlGetEmails(path string) ([]string, error) {
+	return sqlGetRecipients(path, "email")
+}
+
+func sqlGetCallbacks(path string) ([]string, error) {
+	return sqlGetRecipients(path, "callback")
 }

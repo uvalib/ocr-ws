@@ -12,12 +12,13 @@ import (
 )
 
 type ocrRequest struct {
-	pid   string
-	unit  string
-	email string
-	force string
-	lang  string
-	dpi   string
+	pid      string
+	unit     string
+	email    string
+	callback string
+	force    string
+	lang     string
+	dpi      string
 }
 
 type ocrInfo struct {
@@ -40,6 +41,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	ocr.req.pid = params.ByName("pid")
 	ocr.req.unit = r.URL.Query().Get("unit")
 	ocr.req.email = r.URL.Query().Get("email")
+	ocr.req.callback = r.URL.Query().Get("callback")
 	ocr.req.force = r.URL.Query().Get("force")
 	ocr.req.lang = r.URL.Query().Get("lang")
 	ocr.req.dpi = r.URL.Query().Get("dpi")
@@ -69,7 +71,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 		ocr.ts = ts
 
-		sqlAddEmail(ocr.workDir, ocr.req.email)
+		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
 
 		fmt.Fprintf(w, "OK")
 
@@ -84,7 +86,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	if sqlDatabaseExists(ocr.workDir) == true {
 		// request database already exists; don't start another request, just add email to requestor list
 		logger.Printf("Request already in progress; adding email to completion notification list")
-		sqlAddEmail(ocr.workDir, ocr.req.email)
+		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
 		fmt.Fprintf(w, "OK")
 		return
 	}
@@ -105,7 +107,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	if ocr.ts.Pid.TextSource != "" {
 		logger.Printf("OCR/transcription already exists; emailing now")
 
-		sqlAddEmail(ocr.workDir, ocr.req.email)
+		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
 
 		res := ocrResultsInfo{}
 
@@ -143,7 +145,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	// perform ocr
 
-	sqlAddEmail(ocr.workDir, ocr.req.email)
+	sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
 
 	fmt.Fprintf(w, "OK")
 
