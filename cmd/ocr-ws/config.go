@@ -30,14 +30,12 @@ type configData struct {
 	lambdaAttempts            configStringItem
 	concurrentUploads         configStringItem
 	convertedImageDpi         configStringItem
-	useHttps                  configBoolItem
-	sslCrt                    configStringItem
-	sslKey                    configStringItem
 	tsApiHost                 configStringItem
 	tsApiGetPidTemplate       configStringItem
 	tsApiGetManifestTemplate  configStringItem
 	tsApiGetFullTextTemplate  configStringItem
 	tsApiPostFullTextTemplate configStringItem
+	awsDisabled               configBoolItem
 	awsAccessKeyId            configStringItem
 	awsSecretAccessKey        configStringItem
 	awsRegion                 configStringItem
@@ -61,14 +59,12 @@ func init() {
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
 	config.convertedImageDpi = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_CONVERTED_IMAGE_DPI", desc: "dpi of converted image to scan"}}
-	config.useHttps = configBoolItem{value: false, configItem: configItem{flag: "s", env: "OCRWS_USE_HTTPS", desc: "use https"}}
-	config.sslCrt = configStringItem{value: "", configItem: configItem{flag: "c", env: "OCRWS_SSL_CRT", desc: "ssl crt"}}
-	config.sslKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_SSL_KEY", desc: "ssl key"}}
 	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
 	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
 	config.tsApiGetFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_GET_FULLTEXT_TEMPLATE", desc: "tracksys api get fulltext template"}}
 	config.tsApiPostFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_API_POST_FULLTEXT_TEMPLATE", desc: "tracksys api post fulltext template"}}
+	config.awsDisabled = configBoolItem{value: false, configItem: configItem{flag: "L", env: "AWS_DISABLED", desc: "aws disabled flag"}}
 	config.awsAccessKeyId = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
 	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
 	config.awsRegion = configStringItem{value: "", configItem: configItem{flag: "R", env: "AWS_REGION", desc: "aws swf domain"}}
@@ -124,14 +120,12 @@ func getConfigValues() {
 	flagStringVar(&config.lambdaAttempts)
 	flagStringVar(&config.concurrentUploads)
 	flagStringVar(&config.convertedImageDpi)
-	flagBoolVar(&config.useHttps)
-	flagStringVar(&config.sslCrt)
-	flagStringVar(&config.sslKey)
 	flagStringVar(&config.tsApiHost)
 	flagStringVar(&config.tsApiGetPidTemplate)
 	flagStringVar(&config.tsApiGetManifestTemplate)
 	flagStringVar(&config.tsApiGetFullTextTemplate)
 	flagStringVar(&config.tsApiPostFullTextTemplate)
+	flagBoolVar(&config.awsDisabled)
 	flagStringVar(&config.awsAccessKeyId)
 	flagStringVar(&config.awsSecretAccessKey)
 	flagStringVar(&config.awsRegion)
@@ -161,22 +155,20 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetFullTextTemplate) && configOK
 	//configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
-	configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
-	configOK = ensureConfigStringSet(&config.awsRegion) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfDomain) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfTaskList) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfWorkflowType) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfWorkflowVersion) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfWorkflowTimeout) && configOK
-	configOK = ensureConfigStringSet(&config.awsSwfDecisionTimeout) && configOK
-	configOK = ensureConfigStringSet(&config.awsLambdaFunction) && configOK
-	configOK = ensureConfigStringSet(&config.awsLambdaTimeout) && configOK
-	configOK = ensureConfigStringSet(&config.awsBucketName) && configOK
 
-	if config.useHttps.value == true {
-		configOK = ensureConfigStringSet(&config.sslCrt) && configOK
-		configOK = ensureConfigStringSet(&config.sslKey) && configOK
+	if config.awsDisabled.value == false {
+		configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
+		configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
+		configOK = ensureConfigStringSet(&config.awsRegion) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfDomain) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfTaskList) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfWorkflowType) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfWorkflowVersion) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfWorkflowTimeout) && configOK
+		configOK = ensureConfigStringSet(&config.awsSwfDecisionTimeout) && configOK
+		configOK = ensureConfigStringSet(&config.awsLambdaFunction) && configOK
+		configOK = ensureConfigStringSet(&config.awsLambdaTimeout) && configOK
+		configOK = ensureConfigStringSet(&config.awsBucketName) && configOK
 	}
 
 	if configOK == false {
@@ -195,9 +187,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
 	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
-	logger.Printf("[CONFIG] useHttps                  = [%s]", strconv.FormatBool(config.useHttps.value))
-	logger.Printf("[CONFIG] sslCrt                    = [%s]", config.sslCrt.value)
-	logger.Printf("[CONFIG] sslKey                    = [%s]", config.sslKey.value)
+	logger.Printf("[CONFIG] awsDisabled               = [%s]", strconv.FormatBool(config.awsDisabled.value))
 	logger.Printf("[CONFIG] awsAccessKeyId            = [%s]", maskValue(config.awsAccessKeyId.value))
 	logger.Printf("[CONFIG] awsSecretAccessKey        = [%s]", maskValue(config.awsSecretAccessKey.value))
 	logger.Printf("[CONFIG] awsRegion                 = [%s]", config.awsRegion.value)

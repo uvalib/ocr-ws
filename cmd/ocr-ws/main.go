@@ -33,8 +33,10 @@ func main() {
 	client = &http.Client{Timeout: 10 * time.Second}
 
 	// initialize AWS session
-	sess = session.Must(session.NewSession())
-	go awsPollForDecisionTasks()
+	if config.awsDisabled.value == false {
+		sess = session.Must(session.NewSession())
+		go awsPollForDecisionTasks()
+	}
 
 	// Set routes and start server
 	mux := httprouter.New()
@@ -44,11 +46,7 @@ func main() {
 	mux.GET("/ocr/:pid/text", ocrTextHandler)
 	logger.Printf("Start service on port %s", config.listenPort.value)
 
-	if config.useHttps.value == true {
-		log.Fatal(http.ListenAndServeTLS(":"+config.listenPort.value, config.sslCrt.value, config.sslKey.value, cors.Default().Handler(mux)))
-	} else {
-		log.Fatal(http.ListenAndServe(":"+config.listenPort.value, cors.Default().Handler(mux)))
-	}
+	log.Fatal(http.ListenAndServe(":"+config.listenPort.value, cors.Default().Handler(mux)))
 }
 
 /**

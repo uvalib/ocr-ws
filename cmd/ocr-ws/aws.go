@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/swf"
 	"github.com/gammazero/workerpool"
@@ -340,18 +339,18 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				break EventsProcessingLoop
 			}
 
-/*
-			// HANDLED ABOVE in the successful completion condition, as we will never reach this point if this occurs
+			/*
+				// HANDLED ABOVE in the successful completion condition, as we will never reach this point if this occurs
 
-			// attempt to complete the workflow failed: ???
-			// decision(s): ???
-			if t == "CompleteWorkflowExecutionFailed" {
-				a := e.CompleteWorkflowExecutionFailedEventAttributes
-				logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowId, *a.Cause)
-				decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
-				break EventsProcessingLoop
-			}
-*/
+				// attempt to complete the workflow failed: ???
+				// decision(s): ???
+				if t == "CompleteWorkflowExecutionFailed" {
+					a := e.CompleteWorkflowExecutionFailedEventAttributes
+					logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowId, *a.Cause)
+					decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
+					break EventsProcessingLoop
+				}
+			*/
 
 			// attempt to fail the workflow failed: ???
 			// decision(s): ???
@@ -460,7 +459,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					// reduce dpi in steps of 100, going no lower than 100 dpi
 					dpi, _ := strconv.Atoi(req.Dpi)
-					newDpi := fmt.Sprintf("%d", maxOf(100, dpi - 100))
+					newDpi := fmt.Sprintf("%d", maxOf(100, dpi-100))
 					logger.Printf("[%s] dpi: %s -> %s", info.workflowId, req.Dpi, newDpi)
 					req.Dpi = newDpi
 
@@ -627,22 +626,24 @@ func awsDeleteImages(reqDir string) error {
 	logger.Printf("relying on S3 policies to remove original images")
 	return nil
 
-	svc := s3.New(sess)
+	/*
+		svc := s3.New(sess)
 
-	logger.Printf("deleting: [%s]", reqDir)
+		logger.Printf("deleting: [%s]", reqDir)
 
-	iter := s3manager.NewDeleteListIterator(svc, &s3.ListObjectsInput{
-		Bucket: aws.String(config.awsBucketName.value),
-		Prefix: aws.String(fmt.Sprintf("requests/%s", reqDir)),
-	})
+		iter := s3manager.NewDeleteListIterator(svc, &s3.ListObjectsInput{
+			Bucket: aws.String(config.awsBucketName.value),
+			Prefix: aws.String(fmt.Sprintf("requests/%s", reqDir)),
+		})
 
-	err := s3manager.NewBatchDeleteWithClient(svc).Delete(aws.BackgroundContext(), iter)
+		err := s3manager.NewBatchDeleteWithClient(svc).Delete(aws.BackgroundContext(), iter)
 
-	if err != nil {
-		logger.Printf("S3 delete failed: [%s]", err.Error())
-	}
+		if err != nil {
+			logger.Printf("S3 delete failed: [%s]", err.Error())
+		}
 
-	return err
+		return err
+	*/
 }
 
 func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile string) error {
@@ -727,6 +728,10 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 }
 
 func awsGenerateOcr(ocr ocrInfo) error {
+	if config.awsDisabled.value == true {
+		return errors.New(fmt.Sprintf("Automatically failed: [AWS is disabled]"))
+	}
+
 	if err := awsUploadImagesConcurrently(ocr); err != nil {
 		return errors.New(fmt.Sprintf("Upload failed: [%s]", err.Error()))
 	}
