@@ -47,7 +47,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	// save info generated from the original request
 	ocr.subDir = ocr.req.pid
 	ocr.workDir = getWorkDir(ocr.subDir)
-	ocr.reqID = newUUID()
+	ocr.reqID = randomId()
 
 	// check if forcing ocr... bypasses all checks except pid existence (e.g. allows individual master_file ocr)
 	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {

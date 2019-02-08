@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"runtime"
@@ -69,10 +68,6 @@ type lambdaFailureDetails struct {
 	StackTrace   []string `json:"stackTrace,omitempty"`
 }
 
-// globals
-
-var random *rand.Rand
-
 // functions
 
 func awsCompleteWorkflowExecution(result string) *swf.Decision {
@@ -101,7 +96,7 @@ func awsScheduleLambdaFunction(input, control string) *swf.Decision {
 			SetControl(control).
 			SetName(config.awsLambdaFunction.value).
 			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
-			SetId(newUUID()).
+			SetId(randomId()).
 			SetInput(input))
 
 	return decision
@@ -113,7 +108,7 @@ func awsStartTimer(duration int, control string) *swf.Decision {
 		SetStartTimerDecisionAttributes((&swf.StartTimerDecisionAttributes{}).
 			SetControl(control).
 			SetStartToFireTimeout(strconv.Itoa(duration)).
-			SetTimerId(newUUID()))
+			SetTimerId(randomId()))
 
 	return decision
 }
@@ -494,7 +489,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 						break EventsProcessingLoop
 					}
 
-					delay := int(math.Pow(2, float64(count))) + random.Intn(30)
+					delay := int(math.Pow(2, float64(count)))
 
 					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
 
@@ -538,8 +533,6 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 func awsPollForDecisionTasks() {
 	svc := swf.New(sess)
-
-	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for {
 		var info decisionInfo
@@ -592,7 +585,7 @@ func awsPollForDecisionTasks() {
 func awsSubmitWorkflow(req workflowRequest) error {
 	svc := swf.New(sess)
 
-	id := newUUID()
+	id := randomId()
 
 	input, jsonErr := json.Marshal(req)
 	if jsonErr != nil {

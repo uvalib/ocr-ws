@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/satori/go.uuid"
 )
+
+// structures
 
 type ocrPidInfo struct {
 	pid   string // page pid
@@ -27,6 +28,12 @@ type ocrResultsInfo struct {
 	workDir string
 	pages   []ocrPidInfo
 }
+
+// globals
+
+var randpool *rand.Rand
+
+// functions
 
 func getWorkDir(subDir string) string {
 	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
@@ -49,8 +56,7 @@ func getS3Filename(reqID, imgFile, extensionSource string) string {
 	// generates a remote filename based on the expected master tif location, but with the extension of the actual file used
 	localFile := getLocalFilename(imgFile)
 	baseFile := fmt.Sprintf("%s%s", stripExtension(path.Base(localFile)), filepath.Ext(path.Base(extensionSource)))
-	parentDir := path.Base(path.Dir(localFile))
-	s3File := path.Join("requests", reqID, parentDir, baseFile)
+	s3File := path.Join("requests", reqID, baseFile)
 	return s3File
 }
 
@@ -189,12 +195,6 @@ func maxOf(ints ...int) int {
 	return max
 }
 
-func newUUID() string {
-	u := uuid.Must(uuid.NewV4())
-
-	return u.String()
-}
-
 func countsToString(m map[string]int) string {
 	b := new(bytes.Buffer)
 
@@ -207,4 +207,12 @@ func countsToString(m map[string]int) string {
 
 func currentTimestamp() string {
 	return time.Now().Format("2006-01-02 03:04:05 PM")
+}
+
+func randomId() string {
+	return fmt.Sprintf("%0x", randpool.Uint32())
+}
+
+func init() {
+	randpool = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
