@@ -150,7 +150,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 	processEmails(res.workDir, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
 	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
 
-//	os.RemoveAll(res.workDir)
+	os.RemoveAll(res.workDir)
 }
 
 func processOcrFailure(res ocrResultsInfo) {
@@ -161,7 +161,7 @@ func processOcrFailure(res ocrResultsInfo) {
 	processEmails(res.workDir, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
 	processCallbacks(res.workDir, res.reqid, "fail", res.details)
 
-//	os.RemoveAll(res.workDir)
+	os.RemoveAll(res.workDir)
 }
 
 func maxOf(ints ...int) int {
