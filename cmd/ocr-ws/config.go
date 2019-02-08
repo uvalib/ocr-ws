@@ -29,7 +29,6 @@ type configData struct {
 	archiveDir                configStringItem
 	lambdaAttempts            configStringItem
 	concurrentUploads         configStringItem
-	convertedImageDpi         configStringItem
 	iiifUrlTemplate           configStringItem
 	tsApiHost                 configStringItem
 	tsApiGetPidTemplate       configStringItem
@@ -59,7 +58,6 @@ func init() {
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
-	config.convertedImageDpi = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_CONVERTED_IMAGE_DPI", desc: "dpi of converted image to scan"}}
 	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
@@ -121,7 +119,6 @@ func getConfigValues() {
 	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.lambdaAttempts)
 	flagStringVar(&config.concurrentUploads)
-	flagStringVar(&config.convertedImageDpi)
 	flagStringVar(&config.iiifUrlTemplate)
 	flagStringVar(&config.tsApiHost)
 	flagStringVar(&config.tsApiGetPidTemplate)
@@ -152,7 +149,6 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
-	configOK = ensureConfigStringSet(&config.convertedImageDpi) && configOK
 	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
@@ -185,7 +181,6 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] archiveDir                = [%s]", config.archiveDir.value)
 	logger.Printf("[CONFIG] lambdaAttempts            = [%s]", config.lambdaAttempts.value)
 	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
-	logger.Printf("[CONFIG] convertedImageDpi         = [%s]", config.convertedImageDpi.value)
 	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
 	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
 	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)

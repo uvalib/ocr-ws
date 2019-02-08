@@ -43,7 +43,6 @@ type workflowRequest struct {
 	Pid    string        `json:"pid,omitempty"`
 	Path   string        `json:"path,omitempty"`
 	Lang   string        `json:"lang,omitempty"`
-	Dpi    string        `json:"dpi,omitempty"`
 	ReqID  string        `json:"reqid,omitempty"`
 	Bucket string        `json:"bucket,omitempty"`
 	Pages  []ocrPageInfo `json:"pages,omitempty"`
@@ -52,7 +51,7 @@ type workflowRequest struct {
 // json for workflow <-> lambda communication
 type lambdaRequest struct {
 	Lang      string `json:"lang,omitempty"`      // language to use for ocr
-	Dpi       string `json:"dpi,omitempty"`       // converted image dpi
+	Scale     string `json:"scale,omitempty"`     // converted image scale factor
 	Bucket    string `json:"bucket,omitempty"`    // s3 bucket for source image
 	Key       string `json:"key,omitempty"`       // s3 key for source image
 	ParentPid string `json:"parentpid,omitempty"` // pid of metadata parent, if applicable
@@ -288,7 +287,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req := lambdaRequest{}
 
 			req.Lang = info.req.Lang
-			req.Dpi = info.req.Dpi
+			req.Scale = "100"
 			req.Bucket = info.req.Bucket
 			req.Key = page.Filename
 			req.ParentPid = info.req.Pid
@@ -448,7 +447,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				count, _ := strconv.Atoi(origLambdaCount)
 
 				if origLambdaInput != "" {
-					// rerun the referenced lambda, with reduced dpi
+					// rerun the referenced lambda, with reduced scale
 
 					count++
 
@@ -461,11 +460,11 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 						break
 					}
 
-					// reduce dpi in steps of 100, going no lower than 100 dpi
-					dpi, _ := strconv.Atoi(req.Dpi)
-					newDpi := fmt.Sprintf("%d", maxOf(100, dpi-100))
-					logger.Printf("[%s] dpi: %s -> %s", info.workflowId, req.Dpi, newDpi)
-					req.Dpi = newDpi
+					// reduce scale in steps of 10%, going no lower than 10%
+					scale, _ := strconv.Atoi(req.Scale)
+					newScale := fmt.Sprintf("%d", maxOf(10, scale-10))
+					logger.Printf("[%s] scale: %s%% -> %s%%", info.workflowId, req.Scale, newScale)
+					req.Scale = newScale
 
 					input, jErr := json.Marshal(req)
 					if jErr != nil {
@@ -791,7 +790,6 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Pid = ocr.req.pid
 	req.Path = ocr.subDir
 	req.Lang = ocr.ts.Pid.OcrLanguageHint
-	req.Dpi = ocr.req.dpi
 	req.ReqID = ocr.reqID
 	req.Bucket = config.awsBucketName.value
 
