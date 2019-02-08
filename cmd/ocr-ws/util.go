@@ -214,7 +214,7 @@ func currentTimestamp() string {
 }
 
 func randomId() string {
-	return fmt.Sprintf("%0x", randpool.Uint32())
+	return fmt.Sprintf("%0x", randpool.Uint64())
 }
 
 func init() {
