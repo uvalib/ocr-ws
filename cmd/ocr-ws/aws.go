@@ -770,7 +770,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 
 		localFile := getLocalFilename(page.Filename)
 
-		if _, err := os.Stat(localFile); err == nil && page.Pid != "tsm:1250693" {
+		if _, err := os.Stat(localFile); err == nil {
 			page.imageSource = localFile
 		} else {
 			page.imageSource = getIIIFUrl(page.Pid)
