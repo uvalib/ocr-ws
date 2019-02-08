@@ -489,7 +489,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 						break EventsProcessingLoop
 					}
 
-					delay := int(math.Pow(2, float64(count)))
+					delay := int(math.Pow(2, float64(count))) + randpool.Intn(30)
 
 					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
 
@@ -666,6 +666,8 @@ func awsOpenRemoteUrl(remoteUrl string) io.ReadCloser {
 }
 
 func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName string) error {
+	s3File := getS3Filename(reqID, remoteName)
+
 	var imageStream io.ReadCloser
 
 	if strings.HasPrefix(imageSource, "/") {
@@ -681,11 +683,11 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 		return errors.New("Failed to upload image")
 	}
 
-	logger.Printf("uploading: [%s] => [%s]", imageSource, remoteName)
+	logger.Printf("uploading: [%s] => [%s]", imageSource, s3File)
 
 	_, aerr := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(config.awsBucketName.value),
-		Key:    aws.String(remoteName),
+		Key:    aws.String(s3File),
 		Body:   imageStream,
 	})
 
