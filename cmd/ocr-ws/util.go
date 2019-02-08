@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,6 +32,12 @@ func getWorkDir(subDir string) string {
 	return fmt.Sprintf("%s/%s", config.storageDir.value, subDir)
 }
 
+func stripExtension(fileName string) string {
+	strippedFileName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+
+	return strippedFileName
+}
+
 func getLocalFilename(imgFile string) string {
 	// "000012345_0123.tif" => ("000012345", "0123.tif")
 	parts := strings.Split(imgFile, "_")
@@ -40,7 +47,7 @@ func getLocalFilename(imgFile string) string {
 
 func getS3Filename(reqID, imgFile string) string {
 	localFile := getLocalFilename(imgFile)
-	baseFile := path.Base(localFile)
+	baseFile := stripExtension(path.Base(localFile))
 	parentDir := path.Base(path.Dir(localFile))
 	s3File := path.Join("requests", reqID, parentDir, baseFile)
 	return s3File
