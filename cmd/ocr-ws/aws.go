@@ -675,7 +675,6 @@ func awsOpenRemoteUrl(remoteUrl string) io.ReadCloser {
 
 func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile, pid string) error {
 	localFile := getLocalFilename(imgFile)
-	s3File := getS3Filename(reqID, imgFile)
 	iiifUrl := getIIIFUrl(pid)
 
 	var imgSource string
@@ -707,6 +706,8 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile, pid string) er
 		defer imgStream.Close()
 	}
 	}
+
+	s3File := getS3Filename(reqID, imgSource)
 
 	logger.Printf("uploading: [%s] => [%s]", imgSource, s3File)
 
