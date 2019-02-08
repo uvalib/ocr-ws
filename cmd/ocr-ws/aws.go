@@ -284,7 +284,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Lang = info.req.Lang
 			req.Scale = "100"
 			req.Bucket = info.req.Bucket
-			req.Key = page.Filename
+			req.Key = getS3Filename(info.req.ReqID, page.Filename)
 			req.ParentPid = info.req.Pid
 			req.Pid = page.Pid
 
@@ -769,7 +769,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 			page.imageSource = getIIIFUrl(page.Pid)
 		}
 
-		page.remoteName = getS3Filename(ocr.reqID, page.Filename, page.imageSource)
+		page.remoteName = getRemoteFilename(page.Filename, page.imageSource)
 
 		logger.Printf("mapping [%s] => [%s]", page.imageSource, page.remoteName)
 	}

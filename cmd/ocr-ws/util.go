@@ -52,11 +52,15 @@ func getLocalFilename(imgFile string) string {
 	return localFile
 }
 
-func getS3Filename(reqID, imgFile, extensionSource string) string {
+func getRemoteFilename(imgFile, extensionSource string) string {
 	// generates a remote filename based on the expected master tif location, but with the extension of the actual file used
 	localFile := getLocalFilename(imgFile)
-	baseFile := fmt.Sprintf("%s%s", stripExtension(path.Base(localFile)), filepath.Ext(path.Base(extensionSource)))
-	s3File := path.Join("requests", reqID, baseFile)
+	remoteFile := fmt.Sprintf("%s%s", stripExtension(path.Base(localFile)), filepath.Ext(path.Base(extensionSource)))
+	return remoteFile
+}
+
+func getS3Filename(reqID, remoteFile string) string {
+	s3File := path.Join("requests", reqID, remoteFile)
 	return s3File
 }
 
