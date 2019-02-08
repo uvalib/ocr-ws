@@ -290,7 +290,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			req.Lang = info.req.Lang
 			req.Dpi = info.req.Dpi
 			req.Bucket = info.req.Bucket
-			req.Key = getS3Filename(info.req.ReqID, page.Filename)
+			req.Key = page.Filename
 			req.ParentPid = info.req.Pid
 			req.Pid = page.Pid
 
@@ -673,48 +673,28 @@ func awsOpenRemoteUrl(remoteUrl string) io.ReadCloser {
 	return h.Body
 }
 
-func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile, pid string) error {
-	localFile := getLocalFilename(imgFile)
-	iiifUrl := getIIIFUrl(pid)
+func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName string) error {
+	var imageStream io.ReadCloser
 
-	s3File := getS3Filename(reqID, localFile)
-
-	var imgSource string
-	var imgStream io.ReadCloser
-
-	if pid == "tsm:1250693" {
-		imgSource = iiifUrl
-		imgStream = awsOpenRemoteUrl(iiifUrl)
-
-		if imgStream == nil {
-			logger.Printf("Could not find image to upload")
-			return errors.New("Failed to upload image from remote url")
+	if strings.HasPrefix(imageSource, "/") {
+		imageStream = awsOpenLocalFile(imageSource)
+		if imageStream != nil {
+			defer imageStream.Close()
 		}
 	} else {
-	// try local tif first, then fall back to iiif jpg
-	imgSource = localFile
-	imgStream = awsOpenLocalFile(localFile)
-
-	if imgStream == nil {
-		imgSource = iiifUrl
-		imgStream = awsOpenRemoteUrl(iiifUrl)
-
-		if imgStream == nil {
-			logger.Printf("Could not find image to upload")
-			return errors.New("Failed to upload image from local file or remote url")
-		}
-	} else {
-		// close the local file (not needed for http?)
-		defer imgStream.Close()
-	}
+		imageStream = awsOpenRemoteUrl(imageSource)
 	}
 
-	logger.Printf("uploading: [%s] => [%s]", imgSource, s3File)
+	if imageStream == nil {
+		return errors.New("Failed to upload image from remote url")
+	}
+
+	logger.Printf("uploading: [%s] => [%s]", imageSource, remoteName)
 
 	_, aerr := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(config.awsBucketName.value),
-		Key:    aws.String(s3File),
-		Body:   imgStream,
+		Key:    aws.String(remoteName),
+		Body:   imageStream,
 	})
 
 	return aerr
@@ -785,6 +765,21 @@ func awsGenerateOcr(ocr ocrInfo) error {
 		return errors.New(fmt.Sprintf("Automatically failed: [AWS is disabled]"))
 	}
 
+	// create {local tif or iiif url} to {s3 key} mapping
+	for _, page := range ocr.ts.Pages {
+		localFile := getLocalFilename(page.Filename)
+
+		if _, err := os.Stat(localFile); err == nil && page.Pid != "tsm:1250693" {
+			page.imageSource = localFile
+		} else {
+			page.imageSource = getIIIFUrl(page.Pid)
+		}
+
+		page.remoteName = getS3Filename(ocr.reqID, page.Filename, page.imageSource)
+
+		logger.Printf("mapping [%s] => [%s]", page.imageSource, page.remoteName)
+	}
+
 	if err := awsUploadImagesConcurrently(ocr); err != nil {
 		return errors.New(fmt.Sprintf("Upload failed: [%s]", err.Error()))
 	}
@@ -799,7 +794,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	req.Bucket = config.awsBucketName.value
 
 	for _, page := range ocr.ts.Pages {
-		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Filename: page.Filename})
+		req.Pages = append(req.Pages, ocrPageInfo{Pid: page.Pid, Filename: page.remoteName})
 	}
 
 	if err := awsSubmitWorkflow(req); err != nil {

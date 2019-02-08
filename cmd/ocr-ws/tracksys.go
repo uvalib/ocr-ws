@@ -21,6 +21,8 @@ type tsGenericPidInfo struct {
 	OcrHint         string `json:"ocr_hint,omitempty"`
 	OcrCandidate    bool   `json:"ocr_candidate,omitempty"`
 	OcrLanguageHint string `json:"ocr_language_hint,omitempty"`
+	imageSource     string
+	remoteName      string
 }
 
 // holds metadata pid/page info
