@@ -71,8 +71,6 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 		ocr.ts = ts
 
-		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
-
 		fmt.Fprintf(w, "OK")
 
 		go generateOcr(ocr)
@@ -83,10 +81,11 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	// normal request:
 
 	// see if tracking database already exists; if so, request is in progress
-	if sqlDatabaseExists(ocr.workDir) == true {
+	if reqDatabaseExists(ocr.workDir) == true {
 		// request database already exists; don't start another request, just add email to requestor list
-		logger.Printf("Request already in progress; adding email to completion notification list")
-		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
+		logger.Printf("Request already in progress; adding email/callback to completion notification list")
+		reqAddEmail(ocr.workDir, ocr.req.email)
+		reqAddCallback(ocr.workDir, ocr.req.callback)
 		fmt.Fprintf(w, "OK")
 		return
 	}
@@ -102,37 +101,43 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	ocr.ts = ts
 
-	// check if ocr/transcription already exists; if so, just email now
+	/*
+		// shouldn't happen from virgo?
 
-	if ocr.ts.Pid.TextSource != "" {
-		logger.Printf("OCR/transcription already exists; emailing now")
+		// check if ocr/transcription already exists; if so, just email now
 
-		sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
+		if ocr.ts.Pid.TextSource != "" {
+			logger.Printf("OCR/transcription already exists; emailing now")
 
-		res := ocrResultsInfo{}
+			reqAddEmail(ocr.workDir, ocr.req.email)
+			reqAddCallback(ocr.workDir, ocr.req.callback)
 
-		res.pid = ocr.req.pid
-		res.workDir = ocr.workDir
+			res := ocrResultsInfo{}
 
-		for _, p := range ocr.ts.Pages {
-			txt, txtErr := tsGetText(p.Pid)
-			if txtErr != nil {
-				logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, "ERROR: Could not retrieve page text")
-				res.details = "Error encountered while retrieving text for one or more pages"
-				processOcrFailure(res)
-				return
+			res.pid = ocr.req.pid
+			res.reqid = ocr.reqID
+			res.workDir = ocr.workDir
+
+			for _, p := range ocr.ts.Pages {
+				txt, txtErr := tsGetText(p.Pid)
+				if txtErr != nil {
+					logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					fmt.Fprintf(w, "ERROR: Could not retrieve page text")
+					res.details = "Error encountered while retrieving text for one or more pages"
+					processOcrFailure(res)
+					return
+				}
+
+				res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, title: p.Title, text: txt})
 			}
 
-			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, title: p.Title, text: txt})
+			processOcrSuccess(res)
+
+			fmt.Fprintf(w, "OK")
+			return
 		}
-
-		processOcrSuccess(res)
-
-		fmt.Fprintf(w, "OK")
-		return
-	}
+	*/
 
 	// check if this is ocr-able
 
@@ -144,8 +149,6 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	}
 
 	// perform ocr
-
-	sqlAddRecipients(ocr.workDir, ocr.req.email, ocr.req.callback)
 
 	fmt.Fprintf(w, "OK")
 
@@ -254,12 +257,18 @@ func generateOcr(ocr ocrInfo) {
 		ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
 	}
 
+	reqInitialize(ocr.workDir, ocr.reqID)
+	reqUpdateStarted(ocr.workDir, ocr.reqID, currentTimestamp())
+	reqAddEmail(ocr.workDir, ocr.req.email)
+	reqAddCallback(ocr.workDir, ocr.req.callback)
+
 	if err := awsGenerateOcr(ocr); err != nil {
 		logger.Printf("generateOcr() failed: [%s]", err.Error())
 
 		res := ocrResultsInfo{}
 
 		res.pid = ocr.req.pid
+		res.reqid = ocr.reqID
 		res.workDir = ocr.workDir
 		res.details = "Error encountered while starting the OCR process"
 

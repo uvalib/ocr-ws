@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/satori/go.uuid"
 )
@@ -20,6 +21,7 @@ type ocrPidInfo struct {
 
 type ocrResultsInfo struct {
 	pid     string // request pid
+	reqid   string
 	details string
 	workDir string
 	pages   []ocrPidInfo
@@ -76,11 +78,40 @@ func appendStringIfMissing(slice []string, str string) []string {
 	return append(slice, str)
 }
 
+func processEmails(workdir, subject, body, attachment string) {
+	if emails, err := reqGetEmails(workdir); err == nil {
+		for _, e := range emails {
+			emailResults(e, subject, body, attachment)
+		}
+	} else {
+		logger.Printf("error retrieving email addresses: [%s]", err.Error())
+	}
+}
+
+func processCallbacks(workdir, reqid, status, message string) {
+	started, finished, timesErr := reqGetTimes(workdir, reqid)
+	if timesErr != nil {
+		logger.Printf("could not get times; making some up")
+		started = "2019-02-07 01:23:45 AM"
+		finished = "2019-02-07 12:34:56 PM"
+	}
+
+	if callbacks, err := reqGetCallbacks(workdir); err == nil {
+		for _, c := range callbacks {
+			tsJobStatusCallback(c, status, message, started, finished)
+		}
+	} else {
+		logger.Printf("error retrieving callbacks: [%s]", err.Error())
+	}
+}
+
 func processOcrSuccess(res ocrResultsInfo) {
+	logger.Printf("[%s] processing and posting successful OCR", res.pid)
+
+	reqUpdateFinished(res.workDir, res.reqid, currentTimestamp())
+
 	ocrAllText := ""
 	ocrAllFile := fmt.Sprintf("%s/ocr.txt", res.workDir)
-
-	logger.Printf("[%s] processing and posting successful OCR", res.pid)
 
 	for i, p := range res.pages {
 		// save to one file
@@ -116,45 +147,21 @@ func processOcrSuccess(res ocrResultsInfo) {
 		return
 	}
 
-	if emails, err := sqlGetEmails(res.workDir); err == nil {
-		for _, e := range emails {
-			emailResults(e, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
-		}
-	} else {
-		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
-	}
+	processEmails(res.workDir, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
+	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
 
-	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
-		for _, c := range callbacks {
-			tsJobStatusCallback(c, "success", "OCR completed successfully", "2019-02-07 11:41:23 AM", "2019-02-07 11:42:23 AM")
-		}
-	} else {
-		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
-	}
-
-	os.RemoveAll(res.workDir)
+//	os.RemoveAll(res.workDir)
 }
 
 func processOcrFailure(res ocrResultsInfo) {
 	logger.Printf("[%s] processing failed OCR", res.pid)
 
-	if emails, err := sqlGetEmails(res.workDir); err == nil {
-		for _, e := range emails {
-			emailResults(e, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
-		}
-	} else {
-		logger.Printf("[%s] error retrieving email addresses: [%s]", res.pid, err.Error())
-	}
+	reqUpdateFinished(res.workDir, res.reqid, currentTimestamp())
 
-	if callbacks, err := sqlGetCallbacks(res.workDir); err == nil {
-		for _, c := range callbacks {
-			tsJobStatusCallback(c, "fail", res.details, "2019-02-07 11:41:23 AM", "2019-02-07 11:42:23 AM")
-		}
-	} else {
-		logger.Printf("[%s] error retrieving callbacks: [%s]", res.pid, err.Error())
-	}
+	processEmails(res.workDir, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
+	processCallbacks(res.workDir, res.reqid, "fail", res.details)
 
-	os.RemoveAll(res.workDir)
+//	os.RemoveAll(res.workDir)
 }
 
 func maxOf(ints ...int) int {
@@ -183,4 +190,8 @@ func countsToString(m map[string]int) string {
 	}
 
 	return b.String()
+}
+
+func currentTimestamp() string {
+	return time.Now().Format("2006-01-02 03:04:05 PM")
 }

@@ -144,6 +144,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 	res := ocrResultsInfo{}
 
 	res.pid = info.req.Pid
+	res.reqid = info.req.ReqID
 	res.workDir = getWorkDir(info.req.Path)
 
 	for _, e := range info.ocrResults {
@@ -190,6 +191,7 @@ func awsFinalizeFailure(info decisionInfo, details string) {
 	res := ocrResultsInfo{}
 
 	res.pid = info.req.Pid
+	res.reqid = info.req.ReqID
 	res.details = details
 	res.workDir = getWorkDir(info.req.Path)
 
@@ -618,6 +620,9 @@ func awsSubmitWorkflow(req workflowRequest) error {
 	}
 
 	logger.Printf("started WorkflowId [%s] with RunId: [%s]", id, *res.RunId)
+
+	reqUpdateAwsWorkflowId(getWorkDir(req.Path), req.ReqID, id)
+	reqUpdateAwsRunId(getWorkDir(req.Path), req.ReqID, *res.RunId)
 
 	return nil
 }
