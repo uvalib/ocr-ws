@@ -1,7 +1,7 @@
 module github.com/uvalib/ocr-ws
 
 require (
-	github.com/aws/aws-sdk-go v1.16.29
+	github.com/aws/aws-sdk-go v1.16.31
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gammazero/deque v0.0.0-20190130191400-2afb3858e9c7 // indirect
 	github.com/gammazero/workerpool v0.0.0-20181230203049-86a96b5d5d92
