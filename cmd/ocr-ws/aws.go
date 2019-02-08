@@ -686,7 +686,7 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 	}
 
 	if imageStream == nil {
-		return errors.New("Failed to upload image from remote url")
+		return errors.New("Failed to upload image")
 	}
 
 	logger.Printf("uploading: [%s] => [%s]", imageSource, remoteName)
@@ -704,7 +704,7 @@ func awsUploadImages(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
 
 	for _, page := range ocr.ts.Pages {
-		if err := awsUploadImage(uploader, ocr.reqID, page.Filename, page.Pid); err != nil {
+		if err := awsUploadImage(uploader, ocr.reqID, page.imageSource, page.remoteName); err != nil {
 			return errors.New(fmt.Sprintf("Failed to upload image: [%s]", err.Error()))
 		}
 	}
@@ -766,7 +766,9 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	}
 
 	// create {local tif or iiif url} to {s3 key} mapping
-	for _, page := range ocr.ts.Pages {
+	for i, _ := range ocr.ts.Pages {
+		page := &ocr.ts.Pages[i]
+
 		localFile := getLocalFilename(page.Filename)
 
 		if _, err := os.Stat(localFile); err == nil && page.Pid != "tsm:1250693" {
