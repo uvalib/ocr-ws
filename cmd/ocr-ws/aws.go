@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"sort"
@@ -651,32 +653,77 @@ func awsDeleteImages(reqDir string) error {
 	*/
 }
 
-func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile string) error {
-	localFile := getLocalFilename(imgFile)
-	s3File := getS3Filename(reqID, imgFile)
-
+func awsOpenLocalFile(localFile string) io.ReadCloser {
 	f, err := os.Open(localFile)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Failed to open image file: [%s]", err.Error()))
+		logger.Printf("failed to open local file [%s]: [%s]", localFile, err.Error())
+		return nil
 	}
-	defer f.Close()
 
-	logger.Printf("uploading: [%s] => [%s]", localFile, s3File)
+	return f
+}
 
-	_, err = uploader.Upload(&s3manager.UploadInput{
+func awsOpenRemoteUrl(remoteUrl string) io.ReadCloser {
+	h, err := http.Get(remoteUrl)
+	if err != nil {
+		logger.Printf("failed to open remote url [%s]: [%s]", remoteUrl, err.Error())
+		return nil
+	}
+
+	return h.Body
+}
+
+func awsUploadImage(uploader *s3manager.Uploader, reqID, imgFile, pid string) error {
+	localFile := getLocalFilename(imgFile)
+	s3File := getS3Filename(reqID, imgFile)
+	iiifUrl := getIIIFUrl(pid)
+
+	var imgSource string
+	var imgStream io.ReadCloser
+
+	if pid == "tsm:1250693" {
+		imgSource = iiifUrl
+		imgStream = awsOpenRemoteUrl(iiifUrl)
+
+		if imgStream == nil {
+			logger.Printf("Could not find image to upload")
+			return errors.New("Failed to upload image from remote url")
+		}
+	} else {
+	// try local tif first, then fall back to iiif jpg
+	imgSource = localFile
+	imgStream = awsOpenLocalFile(localFile)
+
+	if imgStream == nil {
+		imgSource = iiifUrl
+		imgStream = awsOpenRemoteUrl(iiifUrl)
+
+		if imgStream == nil {
+			logger.Printf("Could not find image to upload")
+			return errors.New("Failed to upload image from local file or remote url")
+		}
+	} else {
+		// close the local file (not needed for http?)
+		defer imgStream.Close()
+	}
+	}
+
+	logger.Printf("uploading: [%s] => [%s]", imgSource, s3File)
+
+	_, aerr := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(config.awsBucketName.value),
 		Key:    aws.String(s3File),
-		Body:   f,
+		Body:   imgStream,
 	})
 
-	return err
+	return aerr
 }
 
 func awsUploadImages(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
 
 	for _, page := range ocr.ts.Pages {
-		if err := awsUploadImage(uploader, ocr.reqID, page.Filename); err != nil {
+		if err := awsUploadImage(uploader, ocr.reqID, page.Filename, page.Pid); err != nil {
 			return errors.New(fmt.Sprintf("Failed to upload image: [%s]", err.Error()))
 		}
 	}
@@ -709,7 +756,7 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 	for i, _ := range ocr.ts.Pages {
 		page := &ocr.ts.Pages[i]
 		wp.Submit(func() {
-			if err := awsUploadImage(uploader, ocr.reqID, page.Filename); err != nil {
+			if err := awsUploadImage(uploader, ocr.reqID, page.Filename, page.Pid); err != nil {
 				uploadFailed = true
 				logger.Printf("Failed to upload image: [%s]", err.Error())
 			}

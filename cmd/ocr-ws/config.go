@@ -30,6 +30,7 @@ type configData struct {
 	lambdaAttempts            configStringItem
 	concurrentUploads         configStringItem
 	convertedImageDpi         configStringItem
+	iiifUrlTemplate           configStringItem
 	tsApiHost                 configStringItem
 	tsApiGetPidTemplate       configStringItem
 	tsApiGetManifestTemplate  configStringItem
@@ -59,6 +60,7 @@ func init() {
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
 	config.convertedImageDpi = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_CONVERTED_IMAGE_DPI", desc: "dpi of converted image to scan"}}
+	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
 	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
@@ -120,6 +122,7 @@ func getConfigValues() {
 	flagStringVar(&config.lambdaAttempts)
 	flagStringVar(&config.concurrentUploads)
 	flagStringVar(&config.convertedImageDpi)
+	flagStringVar(&config.iiifUrlTemplate)
 	flagStringVar(&config.tsApiHost)
 	flagStringVar(&config.tsApiGetPidTemplate)
 	flagStringVar(&config.tsApiGetManifestTemplate)
@@ -150,6 +153,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.convertedImageDpi) && configOK
+	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
@@ -182,6 +186,7 @@ func getConfigValues() {
 	logger.Printf("[CONFIG] lambdaAttempts            = [%s]", config.lambdaAttempts.value)
 	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
 	logger.Printf("[CONFIG] convertedImageDpi         = [%s]", config.convertedImageDpi.value)
+	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
 	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
 	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
 	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)

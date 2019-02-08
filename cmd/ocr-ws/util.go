@@ -46,6 +46,11 @@ func getS3Filename(reqID, imgFile string) string {
 	return s3File
 }
 
+func getIIIFUrl(pid string) string {
+	url := strings.Replace(config.iiifUrlTemplate.value, "{PID}", pid, -1)
+	return url
+}
+
 func writeFileWithContents(filename, contents string) error {
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0664)
 
