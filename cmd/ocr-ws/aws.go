@@ -737,7 +737,7 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 	for i, _ := range ocr.ts.Pages {
 		page := &ocr.ts.Pages[i]
 		wp.Submit(func() {
-			if err := awsUploadImage(uploader, ocr.reqID, page.Filename, page.Pid); err != nil {
+			if err := awsUploadImage(uploader, ocr.reqID, page.imageSource, page.remoteName); err != nil {
 				uploadFailed = true
 				logger.Printf("Failed to upload image: [%s]", err.Error())
 			}
