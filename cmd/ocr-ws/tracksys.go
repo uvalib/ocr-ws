@@ -40,7 +40,7 @@ func tsApiUrlForPidUnit(api, pid, unit string) string {
 		url = fmt.Sprintf("%s?unit=%s", url, unit)
 	}
 
-	logger.Printf("url: [%s]", url)
+	//logger.Printf("url: [%s]", url)
 
 	return url
 }
@@ -195,13 +195,7 @@ func tsGetText(pid string) (string, error) {
 }
 
 func textSnippet(text string) string {
-	s := text
-
-	s = strings.Replace(s, "\n", "\\n", -1)
-	s = strings.Replace(s, "\r", "\\r", -1)
-	s = strings.Replace(s, "\t", "\\t", -1)
-
-	s = fmt.Sprintf("%-32s", s)
+	s := strings.Join(strings.Fields(text), " ")
 
 	return s[:32]
 }
@@ -235,14 +229,12 @@ func tsPostText(pid, text string) error {
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("[%s] posted ocr: [%s...] (%d); response: [%s]", pid, textSnippet(text), len(text), buf)
+	logger.Printf("[%s] posted ocr; response: [%s]  (%d bytes: [%s...])", pid, buf, len(text), textSnippet(text))
 
 	return nil
 }
 
 func tsJobStatusCallback(api, status, message, started, finished string) error {
-	// { status: success/fail, message: informative message, started: start_time, finished: finish_time }
-
 	jobstatus := struct {
 		Status   string `json:"status,omitempty"`
 		Message  string `json:"message,omitempty"`
