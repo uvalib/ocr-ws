@@ -327,6 +327,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			var origLambdaInput string
 			var origLambdaCount string
 
+			lambdaTimedOut := false
+
 			// attempt to start the workflow failed: ???
 			// decision(s): ???
 			if t == "WorkflowExecutionFailed" {
@@ -411,6 +413,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
 				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
 				origLambdaEvent = *a.ScheduledEventId
+				lambdaTimedOut = true
 
 				timeoutStr := ""
 				if o.LambdaFunctionScheduledEventAttributes.StartToCloseTimeout != nil {
@@ -442,37 +445,44 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				count, _ := strconv.Atoi(origLambdaCount)
 
 				if origLambdaInput != "" {
-					// rerun the referenced lambda, with reduced scale
+					// rerun the referenced lambda, with reduced scale only if the lambda timed out
 
 					count++
 
-					req := lambdaRequest{}
+					newLambdaInput := origLambdaInput
 
-					if jErr := json.Unmarshal([]byte(origLambdaInput), &req); jErr != nil {
-						logger.Printf("Unmarshal() failed [lambda retry]: %s", jErr.Error())
-						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda unmarshal failed"))
-						awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
-						break
-					}
+					if lambdaTimedOut == true {
+						req := lambdaRequest{}
 
-					// reduce scale in steps of 10%, going no lower than 10%
-					scale, _ := strconv.Atoi(req.Scale)
-					newScale := fmt.Sprintf("%d", maxOf(10, scale-10))
-					logger.Printf("[%s] scale: %s%% -> %s%%", info.workflowId, req.Scale, newScale)
-					req.Scale = newScale
+						if jErr := json.Unmarshal([]byte(origLambdaInput), &req); jErr != nil {
+							logger.Printf("Unmarshal() failed [lambda retry]: %s", jErr.Error())
+							decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda unmarshal failed"))
+							awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
+							break
+						}
 
-					input, jErr := json.Marshal(req)
-					if jErr != nil {
-						logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jErr.Error())
-						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-marshal failed"))
-						awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
-						break
+						// reduce scale in steps of 10%, going no lower than 10%
+						scale, _ := strconv.Atoi(req.Scale)
+						newScale := fmt.Sprintf("%d", maxOf(10, scale-10))
+						logger.Printf("[%s] scale: %s%% -> %s%%", info.workflowId, req.Scale, newScale)
+						req.Scale = newScale
+
+						input, jErr := json.Marshal(req)
+						if jErr != nil {
+							logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jErr.Error())
+							decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-marshal failed"))
+							awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
+							break
+						}
+
+						newLambdaInput = string(input)
+
+						logger.Printf("[%s] new input: %s", info.workflowId, newLambdaInput)
 					}
 
 					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
-					logger.Printf("[%s] new input: %s", info.workflowId, input)
 
-					decisions = append(decisions, awsScheduleLambdaFunction(string(input), strconv.Itoa(count)))
+					decisions = append(decisions, awsScheduleLambdaFunction(newLambdaInput, strconv.Itoa(count)))
 				} else {
 					// start a timer referencing the original lambda to be rerun, with exponential backoff based on execution count
 
