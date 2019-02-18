@@ -195,9 +195,20 @@ func tsGetText(pid string) (string, error) {
 }
 
 func textSnippet(text string) string {
-	s := strings.Join(strings.Fields(text), " ")
+	txtLen := 48
+	etcStr := "..."
+	padLen := txtLen + len(etcStr)
 
-	return s[:48]
+	s := strings.Join(strings.Fields(text), " ")
+	strLen := len(s)
+
+	if strLen > txtLen {
+		s = s[:txtLen] + etcStr
+	}
+
+	s = s + strings.Repeat(" ", padLen)
+
+	return s[:padLen]
 }
 
 func tsPostText(pid, text string) error {
@@ -229,7 +240,7 @@ func tsPostText(pid, text string) error {
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("[%s] posted ocr: [%s] <= [%s...] (%d)", pid, buf, textSnippet(text), len(text))
+	logger.Printf("[%s] posted ocr: [%s] <= [%s] (%d)", pid, buf, textSnippet(text), len(text))
 
 	return nil
 }
