@@ -71,9 +71,9 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	// normal request:
 
-	// see if tracking database already exists; if so, request is in progress
-	if reqDatabaseExists(ocr.workDir) == true {
-		// request database already exists; don't start another request, just add email to requestor list
+	// see if request is already in progress
+	if reqInProgress(ocr.workDir) == true {
+		// request is in progress; don't start another request, just add email/callback to completion notification list
 		logger.Printf("Request already in progress; adding email/callback to completion notification list")
 		reqAddEmail(ocr.workDir, ocr.req.email)
 		reqAddCallback(ocr.workDir, ocr.req.callback)

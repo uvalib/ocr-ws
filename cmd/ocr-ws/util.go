@@ -112,16 +112,16 @@ func processEmails(workdir, subject, body, attachment string) {
 }
 
 func processCallbacks(workdir, reqid, status, message string) {
-	started, finished, timesErr := reqGetTimes(workdir, reqid)
-	if timesErr != nil {
-		logger.Printf("could not get times; making some up")
-		started = "2019-02-07 01:23:45 AM"
-		finished = "2019-02-07 12:34:56 PM"
+	req, reqErr := reqGetRequestInfo(workdir, reqid)
+	if reqErr != nil {
+		logger.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
+		req.Started = "2019-02-07 01:23:45 AM"
+		req.Finished = "2019-02-07 12:34:56 PM"
 	}
 
 	if callbacks, err := reqGetCallbacks(workdir); err == nil {
 		for _, c := range callbacks {
-			tsJobStatusCallback(c, status, message, started, finished)
+			tsJobStatusCallback(c, status, message, req.Started, req.Finished)
 		}
 	} else {
 		logger.Printf("error retrieving callbacks: [%s]", err.Error())

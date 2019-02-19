@@ -9,18 +9,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func reqFileName(path string) string {
-	return fmt.Sprintf("%s/requests.db", path)
+type reqInfo struct {
+	ReqId string
+	Started string
+	Finished string
+	AWSWorkflowId string
+	AWSRunId string
 }
 
-func reqDatabaseExists(path string) bool {
-	dbFile := reqFileName(path)
-
-	if _, err := os.Stat(dbFile); err == nil {
-		return true
-	}
-
-	return false
+func reqFileName(path string) string {
+	return fmt.Sprintf("%s/requests.db", path)
 }
 
 func reqOpenDatabase(path string) (*sql.DB, error) {
@@ -31,7 +29,37 @@ func reqOpenDatabase(path string) (*sql.DB, error) {
 	return sql.Open("sqlite3", dbFile)
 }
 
+func reqInProgress(path string) bool {
+	req, err := reqGetRequestInfo(path, "")
+	if err != nil || req.AWSWorkflowId == "" {
+		return false
+	}
+
+	logger.Printf("would look up workflowID here: [%s]", req.AWSWorkflowId)
+
+	// check if this is an open workflow
+	// yes: true
+	// no: continue...
+
+	// check if this is a closed workflow
+	// yes: false
+	// no: continue...
+
+	// check if finished is set
+	if req.Finished != "" {
+		return false
+	}
+
+	// might be new/still uploading images/etc.
+	// check if started is more than X hours ago
+	// yes: false
+	// continue...
+
+	return true
+}
+
 func reqInitialize(path, reqid string) error {
+	os.RemoveAll(path)
 	os.MkdirAll(path, 0775)
 
 	// open database
@@ -81,32 +109,37 @@ func reqInitialize(path, reqid string) error {
 	return nil
 }
 
-func reqGetTimes(path, reqid string) (string, string, error) {
+func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	// open database
 	db, err := reqOpenDatabase(path)
 	if err != nil {
-		logger.Printf("[req] failed to open requests database when getting times: [%s]", err.Error())
-		return "", "", errors.New("Failed to open requests database")
+		logger.Printf("[req] failed to open requests database when getting workflow id: [%s]", err.Error())
+		return nil, errors.New("Failed to open requests database")
 	}
 	defer db.Close()
 
-	// grab times
+	// grab request info
 
-	var started, finished string
+	var req reqInfo
+	var clause string
 
-	query := fmt.Sprintf("select started, finished from request_info where req_id = '%s';", reqid)
+	if reqid != "" {
+		clause = fmt.Sprintf(" where req_id = '%s'", reqid)
+	}
+
+	query := fmt.Sprintf("select req_id, started, finished, aws_workflow_id, aws_run_id from request_info%s;", clause)
 	rows, err := db.Query(query)
 	if err != nil {
-		logger.Printf("[req] failed to retrieve times: [%s]", err.Error())
-		return "", "", errors.New("Failed to retrieve times")
+		logger.Printf("[req] failed to retrieve request info: [%s]", err.Error())
+		return nil, errors.New("Failed to retrieve request info")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&started, &finished)
+		err = rows.Scan(&req.ReqId, &req.Started, &req.Finished, &req.AWSWorkflowId, &req.AWSRunId)
 		if err != nil {
-			logger.Printf("[req] failed to scan times: [%s]", err.Error())
-			return "", "", errors.New("Failed to scan times")
+			logger.Printf("[req] failed to scan request info: [%s]", err.Error())
+			return nil, errors.New("Failed to scan request info")
 		}
 	}
 
@@ -115,13 +148,13 @@ func reqGetTimes(path, reqid string) (string, string, error) {
 	err = rows.Err()
 	if err != nil {
 		logger.Printf("[req] select query failed: [%s]", err.Error())
-		return "", "", errors.New("Failed to select times")
+		return nil, errors.New("Failed to select requear info")
 	}
 
-	return started, finished, nil
+	return &req, nil
 }
 
-func reqUpdateRequest(path, reqid, column, value string) error {
+func reqUpdateRequestColumn(path, reqid, column, value string) error {
 	// open database
 	db, err := reqOpenDatabase(path)
 	if err != nil {
@@ -141,22 +174,22 @@ func reqUpdateRequest(path, reqid, column, value string) error {
 }
 
 func reqUpdateStarted(path, reqid, value string) error {
-	return reqUpdateRequest(path, reqid, "started", value)
+	return reqUpdateRequestColumn(path, reqid, "started", value)
 }
 
 func reqUpdateFinished(path, reqid, value string) error {
-	return reqUpdateRequest(path, reqid, "finished", value)
+	return reqUpdateRequestColumn(path, reqid, "finished", value)
 }
 
 func reqUpdateAwsWorkflowId(path, reqid, value string) error {
-	return reqUpdateRequest(path, reqid, "aws_workflow_id", value)
+	return reqUpdateRequestColumn(path, reqid, "aws_workflow_id", value)
 }
 
 func reqUpdateAwsRunId(path, reqid, value string) error {
-	return reqUpdateRequest(path, reqid, "aws_run_id", value)
+	return reqUpdateRequestColumn(path, reqid, "aws_run_id", value)
 }
 
-func reqAddRecipient(path string, rtype int, rvalue string) error {
+func reqAddRecipientByType(path string, rtype int, rvalue string) error {
 	if rvalue == "" {
 		return nil
 	}
@@ -192,14 +225,14 @@ func reqAddRecipient(path string, rtype int, rvalue string) error {
 }
 
 func reqAddEmail(path, value string) error {
-	return reqAddRecipient(path, 1, value)
+	return reqAddRecipientByType(path, 1, value)
 }
 
 func reqAddCallback(path, value string) error {
-	return reqAddRecipient(path, 2, value)
+	return reqAddRecipientByType(path, 2, value)
 }
 
-func reqGetRecipients(path string, rtype int) ([]string, error) {
+func reqGetRecipientsByType(path string, rtype int) ([]string, error) {
 	// open database
 	db, err := reqOpenDatabase(path)
 	if err != nil {
@@ -243,9 +276,9 @@ func reqGetRecipients(path string, rtype int) ([]string, error) {
 }
 
 func reqGetEmails(path string) ([]string, error) {
-	return reqGetRecipients(path, 1)
+	return reqGetRecipientsByType(path, 1)
 }
 
 func reqGetCallbacks(path string) ([]string, error) {
-	return reqGetRecipients(path, 2)
+	return reqGetRecipientsByType(path, 2)
 }
