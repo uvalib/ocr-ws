@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -38,23 +39,48 @@ func reqInProgress(path string) bool {
 	logger.Printf("would look up workflowID here: [%s]", req.AWSWorkflowId)
 
 	// check if this is an open workflow
-	// yes: true
-	// no: continue...
+	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId)
+	if openErr == nil && open == true {
+		logger.Printf("workflow is open: [%s]", req.AWSWorkflowId)
+		return true
+	}
 
 	// check if this is a closed workflow
-	// yes: false
-	// no: continue...
+	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId)
+	if closedErr == nil && closed == true {
+		logger.Printf("workflow is closed: [%s]", req.AWSWorkflowId)
+		return false
+	}
 
 	// check if finished is set
 	if req.Finished != "" {
 		return false
 	}
 
-	// might be new/still uploading images/etc.
-	// check if started is more than X hours ago
-	// yes: false
-	// continue...
+	// check if started is more than 1 hour ago (assume S3 uploads will never take that long)
+	secs := 3600
 
+	started, sErr := time.Parse("2006-01-02 03:04:05 PM", req.Started)
+	if sErr != nil {
+		logger.Printf("failure parsing start time: [%s] (%s)", req.Started, sErr.Error())
+		return false
+	}
+
+	finished, fErr := time.Parse("2006-01-02 03:04:05 PM", req.Finished)
+	if fErr != nil {
+		logger.Printf("failure parsing finished time: [%s] (%s)", req.Finished, fErr.Error())
+		return false
+	}
+
+	elapsed := int(finished.Sub(started).Seconds())
+
+	logger.Printf("elapsed: [%d] > secs: [%d] ?", elapsed, secs)
+
+	if elapsed > secs {
+		return false
+	}
+
+	// somewhat recent, and not in SWF yet -- might be new/still uploading images
 	return true
 }
 
