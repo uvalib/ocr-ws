@@ -31,29 +31,35 @@ func reqOpenDatabase(path string) (*sql.DB, error) {
 }
 
 func reqInProgress(path string) bool {
+	logger.Printf("checking for existing request in progress")
+
 	req, err := reqGetRequestInfo(path, "")
-	if err != nil || req.AWSWorkflowId == "" {
+	if err != nil || req.AWSWorkflowId == "" || req.AWSRunId == "" {
+		logger.Printf("no valid request info found; not in progress")
 		return false
 	}
 
-	logger.Printf("would look up workflowID here: [%s]", req.AWSWorkflowId)
+	logger.Printf("found existing workflowId: [%s] / runId: [%s]", req.AWSWorkflowId, req.AWSRunId)
 
 	// check if this is an open workflow
-	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId)
+	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId, req.AWSRunId)
 	if openErr == nil && open == true {
-		logger.Printf("workflow is open: [%s]", req.AWSWorkflowId)
+		logger.Printf("workflow execution is open; in progress")
 		return true
 	}
 
 	// check if this is a closed workflow
-	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId)
+	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId, req.AWSRunId)
 	if closedErr == nil && closed == true {
-		logger.Printf("workflow is closed: [%s]", req.AWSWorkflowId)
+		logger.Printf("workflow execution is closed; not in progress")
 		return false
 	}
 
+	logger.Printf("workflow execution is indeterminate; checking timestamps...")
+
 	// check if finished is set
 	if req.Finished != "" {
+		logger.Printf("request has a finished timestamp; not in progress")
 		return false
 	}
 
@@ -62,25 +68,28 @@ func reqInProgress(path string) bool {
 
 	started, sErr := time.Parse("2006-01-02 03:04:05 PM", req.Started)
 	if sErr != nil {
-		logger.Printf("failure parsing start time: [%s] (%s)", req.Started, sErr.Error())
+		logger.Printf("failure parsing start time: [%s] (%s); treating as not in progress", req.Started, sErr.Error())
 		return false
 	}
 
 	finished, fErr := time.Parse("2006-01-02 03:04:05 PM", req.Finished)
 	if fErr != nil {
-		logger.Printf("failure parsing finished time: [%s] (%s)", req.Finished, fErr.Error())
+		logger.Printf("failure parsing finished time: [%s] (%s); treating as not in progress", req.Finished, fErr.Error())
 		return false
 	}
 
 	elapsed := int(finished.Sub(started).Seconds())
 
-	logger.Printf("elapsed: [%d] > secs: [%d] ?", elapsed, secs)
+	logger.Printf("checking elapsed: [%d] > secs: [%d] ?", elapsed, secs)
 
 	if elapsed > secs {
+		logger.Printf("request has a stale started timestamp; not in progress")
 		return false
 	}
 
 	// somewhat recent, and not in SWF yet -- might be new/still uploading images
+	logger.Printf("request is somewhat recent, but not found in SWF; assuming in progress (could still be uploading to S3)")
+
 	return true
 }
 

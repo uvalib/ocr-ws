@@ -592,13 +592,11 @@ func awsPollForDecisionTasks() {
 	}
 }
 
-func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowId string) bool {
+func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowId, runId string) bool {
 	for _, e := range ExecutionInfos {
-		logger.Printf("execution info: [%s]", e.String())
+		logger.Printf("checking WorkflowId: [%s] / RunId: [%s]", *e.Execution.WorkflowId, *e.Execution.RunId)
 
-		logger.Printf("checking WorkflowExecution: [%s]", *e.Execution.WorkflowId)
-
-		if *e.Execution.WorkflowId == workflowId {
+		if *e.Execution.WorkflowId == workflowId && *e.Execution.RunId == runId {
 			return true
 		}
 	}
@@ -606,9 +604,7 @@ func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowId s
 	return false
 }
 
-func awsWorkflowIsOpen(workflowId string) (bool, error) {
-	svc := swf.New(sess)
-
+func awsListWorkflowDateRange() (time.Time, time.Time) {
 	// set window based on configured workflow timeout (in seconds), plus a little padding
 	secs, _ := strconv.Atoi(config.awsSwfWorkflowTimeout.value)
 	secs += 300
@@ -616,13 +612,23 @@ func awsWorkflowIsOpen(workflowId string) (bool, error) {
 	now := time.Now()
 	then := now.Add(time.Duration(-secs) * time.Second)
 
+	return then, now
+}
+
+func awsWorkflowIsOpen(workflowId, runId string) (bool, error) {
+	logger.Printf("checking for open workflow: [%s]", workflowId)
+
+	svc := swf.New(sess)
+
+	from, to := awsListWorkflowDateRange()
+
 	input := (&swf.ListOpenWorkflowExecutionsInput{}).
 		SetDomain(config.awsSwfDomain.value).
 		SetExecutionFilter((&swf.WorkflowExecutionFilter{}).
 			SetWorkflowId(workflowId)).
 		SetStartTimeFilter((&swf.ExecutionTimeFilter{}).
-			SetOldestDate(then).
-			SetLatestDate(now))
+			SetOldestDate(from).
+			SetLatestDate(to))
 
 	res, err := svc.ListOpenWorkflowExecutions(input)
 
@@ -631,28 +637,23 @@ func awsWorkflowIsOpen(workflowId string) (bool, error) {
 		return false, errors.New("Failed to list open workflows")
 	}
 
-	logger.Printf("got results: [%s]", res.String())
-
-	return awsWorkflowInList(res.ExecutionInfos, workflowId), nil
+	return awsWorkflowInList(res.ExecutionInfos, workflowId, runId), nil
 }
 
-func awsWorkflowIsClosed(workflowId string) (bool, error) {
+func awsWorkflowIsClosed(workflowId, runId string) (bool, error) {
+	logger.Printf("checking for closed workflow: [%s]", workflowId)
+
 	svc := swf.New(sess)
 
-	// set window based on configured workflow timeout (in seconds), plus a little padding
-	secs, _ := strconv.Atoi(config.awsSwfWorkflowTimeout.value)
-	secs += 300
-
-	now := time.Now()
-	then := now.Add(time.Duration(-secs) * time.Second)
+	from, to := awsListWorkflowDateRange()
 
 	input := (&swf.ListClosedWorkflowExecutionsInput{}).
 		SetDomain(config.awsSwfDomain.value).
 		SetExecutionFilter((&swf.WorkflowExecutionFilter{}).
 			SetWorkflowId(workflowId)).
 		SetStartTimeFilter((&swf.ExecutionTimeFilter{}).
-			SetOldestDate(then).
-			SetLatestDate(now))
+			SetOldestDate(from).
+			SetLatestDate(to))
 
 	res, err := svc.ListClosedWorkflowExecutions(input)
 
@@ -661,9 +662,7 @@ func awsWorkflowIsClosed(workflowId string) (bool, error) {
 		return false, errors.New("Failed to list closed workflows")
 	}
 
-	logger.Printf("got results: [%s]", res.String())
-
-	return awsWorkflowInList(res.ExecutionInfos, workflowId), nil
+	return awsWorkflowInList(res.ExecutionInfos, workflowId, runId), nil
 }
 
 func awsSubmitWorkflow(req workflowRequest) error {
