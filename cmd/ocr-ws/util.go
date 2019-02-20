@@ -115,8 +115,13 @@ func processCallbacks(workdir, reqid, status, message string) {
 	req, reqErr := reqGetRequestInfo(workdir, reqid)
 	if reqErr != nil {
 		logger.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
-		req.Started = "2019-02-07 01:23:45 AM"
-		req.Finished = "2019-02-07 12:34:56 PM"
+
+		now := time.Now()
+		then := now.Add(-1 * time.Minute)
+
+		req = &reqInfo{}
+		req.Started = timestampFor(then)
+		req.Finished = timestampFor(now)
 	}
 
 	if callbacks, err := reqGetCallbacks(workdir); err == nil {
@@ -209,8 +214,12 @@ func countsToString(m map[string]int) string {
 	return b.String()
 }
 
+func timestampFor(t time.Time) string {
+	return t.Format("2006-01-02 03:04:05 PM")
+}
+
 func currentTimestamp() string {
-	return time.Now().Format("2006-01-02 03:04:05 PM")
+	return timestampFor(time.Now())
 }
 
 func randomId() string {
