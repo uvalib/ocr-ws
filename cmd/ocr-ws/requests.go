@@ -30,32 +30,8 @@ func reqOpenDatabase(path string) (*sql.DB, error) {
 	return sql.Open("sqlite3", dbFile)
 }
 
-func reqInProgress(path string) bool {
-	logger.Printf("checking for existing request in progress")
-
-	req, err := reqGetRequestInfo(path, "")
-	if err != nil || req.AWSWorkflowId == "" || req.AWSRunId == "" {
-		logger.Printf("no valid request info found; not in progress")
-		return false
-	}
-
-	logger.Printf("found existing workflowId: [%s] / runId: [%s]", req.AWSWorkflowId, req.AWSRunId)
-
-	// check if this is an open workflow
-	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId, req.AWSRunId)
-	if openErr == nil && open == true {
-		logger.Printf("workflow execution is open; in progress")
-		return true
-	}
-
-	// check if this is a closed workflow
-	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId, req.AWSRunId)
-	if closedErr == nil && closed == true {
-		logger.Printf("workflow execution is closed; not in progress")
-		return false
-	}
-
-	logger.Printf("workflow execution is indeterminate; checking timestamps...")
+func reqInProgressByDates(req *reqInfo) bool {
+	logger.Printf("checking for existing request in progress by timestamps")
 
 	// check if finished is set
 	if req.Finished != "" {
@@ -91,6 +67,42 @@ func reqInProgress(path string) bool {
 	logger.Printf("request is somewhat recent, but not found in SWF; assuming in progress (could still be uploading to S3)")
 
 	return true
+}
+
+func reqInProgress(path string) bool {
+	logger.Printf("checking for existing request in progress")
+
+	req, err := reqGetRequestInfo(path, "")
+	if err != nil {
+		logger.Printf("error getting request info; not in progress (%s)", err.Error())
+		return false
+	}
+
+	if req.AWSWorkflowId == "" || req.AWSRunId == "" {
+		logger.Printf("no valid request info found; checking timestamps")
+
+		return reqInProgressByDates(req)
+	}
+
+	logger.Printf("found existing workflowId: [%s] / runId: [%s]", req.AWSWorkflowId, req.AWSRunId)
+
+	// check if this is an open workflow
+	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId, req.AWSRunId)
+	if openErr == nil && open == true {
+		logger.Printf("workflow execution is open; in progress")
+		return true
+	}
+
+	// check if this is a closed workflow
+	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId, req.AWSRunId)
+	if closedErr == nil && closed == true {
+		logger.Printf("workflow execution is closed; not in progress")
+		return false
+	}
+
+	logger.Printf("workflow execution is indeterminate; checking timestamps")
+
+	return reqInProgressByDates(req)
 }
 
 func reqInitialize(path, reqid string) error {
