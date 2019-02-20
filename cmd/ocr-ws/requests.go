@@ -48,13 +48,9 @@ func reqInProgressByDates(req *reqInfo) bool {
 		return false
 	}
 
-	finished, fErr := time.Parse("2006-01-02 03:04:05 PM", req.Finished)
-	if fErr != nil {
-		logger.Printf("failure parsing finished time: [%s] (%s); treating as not in progress", req.Finished, fErr.Error())
-		return false
-	}
+	now := time.Now()
 
-	elapsed := int(finished.Sub(started).Seconds())
+	elapsed := int(now.Sub(started).Seconds())
 
 	logger.Printf("checking elapsed: [%d] > secs: [%d] ?", elapsed, secs)
 
