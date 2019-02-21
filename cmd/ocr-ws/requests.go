@@ -11,11 +11,11 @@ import (
 )
 
 type reqInfo struct {
-	ReqId string
-	Started string
-	Finished string
+	ReqId         string
+	Started       string
+	Finished      string
 	AWSWorkflowId string
-	AWSRunId string
+	AWSRunId      string
 }
 
 func reqFileName(path string) string {
