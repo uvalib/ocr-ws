@@ -194,7 +194,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 		return nil, errors.New("Failed to select requear info")
 	}
 
-	logger.Printf("req: %V", req)
+	logger.Printf("req: %+v", req)
 
 	return &req, nil
 }
