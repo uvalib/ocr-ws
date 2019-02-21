@@ -249,7 +249,7 @@ func generateOcr(ocr ocrInfo) {
 	}
 
 	reqInitialize(ocr.workDir, ocr.reqID)
-	reqUpdateStarted(ocr.workDir, ocr.reqID, currentTimestamp())
+	reqUpdateStarted(ocr.workDir, ocr.reqID)
 	reqAddEmail(ocr.workDir, ocr.req.email)
 	reqAddCallback(ocr.workDir, ocr.req.callback)
 

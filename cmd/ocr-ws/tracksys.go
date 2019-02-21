@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // the line between metadata/masterfile fields is getting blurry; just lump them together
@@ -288,4 +289,15 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 	logger.Printf("posted job status: [%s]; response: [%s]", string(output), buf)
 
 	return nil
+}
+
+func tsTimestamp(epoch string) string {
+	e, err := epochToInt64(epoch)
+	if err != nil {
+		e = time.Now().Unix()
+	}
+
+	ts := time.Unix(e, 0).Format("2006-01-02 03:04:05 PM")
+
+	return ts
 }

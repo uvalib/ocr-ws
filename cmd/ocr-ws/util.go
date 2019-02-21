@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -116,12 +117,12 @@ func processCallbacks(workdir, reqid, status, message string) {
 	if reqErr != nil {
 		logger.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
 
-		now := time.Now()
-		then := now.Add(-1 * time.Minute)
+		now := time.Now().Unix()
+		then := now - 60
 
 		req = &reqInfo{}
-		req.Started = timestampFor(then)
-		req.Finished = timestampFor(now)
+		req.Started = tsTimestamp(fmt.Sprintf("%d", then))
+		req.Finished = tsTimestamp(fmt.Sprintf("%d", now))
 	}
 
 	if callbacks, err := reqGetCallbacks(workdir); err == nil {
@@ -136,7 +137,7 @@ func processCallbacks(workdir, reqid, status, message string) {
 func processOcrSuccess(res ocrResultsInfo) {
 	logger.Printf("[%s] processing and posting successful OCR", res.pid)
 
-	reqUpdateFinished(res.workDir, res.reqid, currentTimestamp())
+	reqUpdateFinished(res.workDir, res.reqid)
 
 	ocrAllText := ""
 	ocrAllFile := fmt.Sprintf("%s/ocr.txt", res.workDir)
@@ -184,7 +185,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 func processOcrFailure(res ocrResultsInfo) {
 	logger.Printf("[%s] processing failed OCR", res.pid)
 
-	reqUpdateFinished(res.workDir, res.reqid, currentTimestamp())
+	reqUpdateFinished(res.workDir, res.reqid)
 
 	processEmails(res.workDir, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
 	processCallbacks(res.workDir, res.reqid, "fail", res.details)
@@ -214,16 +215,17 @@ func countsToString(m map[string]int) string {
 	return b.String()
 }
 
-func timestampFor(t time.Time) string {
-	return t.Format("2006-01-02 03:04:05 PM")
-}
-
-func currentTimestamp() string {
-	return timestampFor(time.Now())
-}
-
 func randomId() string {
 	return fmt.Sprintf("%0x", randpool.Uint64())
+}
+
+func epochToInt64(epoch string) (int64, error) {
+	e, err := strconv.ParseInt(epoch, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(e), nil
 }
 
 func init() {

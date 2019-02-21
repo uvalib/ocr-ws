@@ -40,19 +40,19 @@ func reqInProgressByDates(req *reqInfo) bool {
 	}
 
 	// check if started is more than 1 hour ago (assume S3 uploads will never take that long)
-	secs := 3600
+	secs := int64(3600)
 
-	started, sErr := time.Parse("2006-01-02 03:04:05 PM", req.Started)
-	if sErr != nil {
-		logger.Printf("failure parsing start time: [%s] (%s); treating as not in progress", req.Started, sErr.Error())
+	started, err := epochToInt64(req.Started)
+	if err != nil {
+		logger.Printf("failure parsing start time: [%s] (%s); treating as not in progress", req.Started, err.Error())
 		return false
 	}
 
-	now := time.Now()
+	now := time.Now().Unix()
 
-	elapsed := int(now.Sub(started).Seconds())
+	elapsed := now - started
 
-	logger.Printf("checking elapsed: [%d] > secs: [%d] ?", elapsed, secs)
+	logger.Printf("started: [%d]  now: [%d] => elapsed: [%d] > secs: [%d] ?", started, now, elapsed, secs)
 
 	if elapsed > secs {
 		logger.Printf("request has a stale started timestamp; not in progress")
@@ -194,6 +194,8 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 		return nil, errors.New("Failed to select requear info")
 	}
 
+	logger.Printf("req: %V", req)
+
 	return &req, nil
 }
 
@@ -216,12 +218,12 @@ func reqUpdateRequestColumn(path, reqid, column, value string) error {
 	return nil
 }
 
-func reqUpdateStarted(path, reqid, value string) error {
-	return reqUpdateRequestColumn(path, reqid, "started", value)
+func reqUpdateStarted(path, reqid string) error {
+	return reqUpdateRequestColumn(path, reqid, "started", fmt.Sprintf("%d", time.Now().Unix()))
 }
 
-func reqUpdateFinished(path, reqid, value string) error {
-	return reqUpdateRequestColumn(path, reqid, "finished", value)
+func reqUpdateFinished(path, reqid string) error {
+	return reqUpdateRequestColumn(path, reqid, "finished", fmt.Sprintf("%d", time.Now().Unix()))
 }
 
 func reqUpdateAwsWorkflowId(path, reqid, value string) error {
