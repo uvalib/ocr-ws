@@ -13,6 +13,7 @@ GOVET = $(GOCMD) vet
 GOFMT = $(GOCMD) fmt
 GOGET = $(GOCMD) get
 GOMOD = $(GOCMD) mod
+GOVER = $(GOCMD) version
 
 # default build target is host machine architecture
 MACHINE = $(shell uname -s | tr '[A-Z]' '[a-z]')
@@ -41,6 +42,8 @@ go-vars:
 compile:
 	@ \
 	echo "building packages: [$(PACKAGES)] for target: [$(TARGET)]" ; \
+	echo ; \
+	$(GOVER) ; \
 	echo ; \
 	for pkg in $(PACKAGES) ; do \
 		printf "compile: %-6s  env: [%s]  flags: [%s]\n" "$${pkg}" "$(GOENV)" "$(GOFLAGS)" ; \
