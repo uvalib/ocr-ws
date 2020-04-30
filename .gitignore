@@ -9,3 +9,5 @@ bin
 # Ignore application configuration
 /config.yml
 dist/
+env.*
+.idea

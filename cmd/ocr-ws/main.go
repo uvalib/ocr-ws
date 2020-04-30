@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,6 +30,9 @@ func main() {
 	logger.Printf("Load configuration...")
 	getConfigValues()
 
+	// load version details
+	initVersion()
+
 	// initialize http client
 	client = &http.Client{Timeout: 10 * time.Second}
 
@@ -41,6 +45,9 @@ func main() {
 	// Set routes and start server
 	mux := httprouter.New()
 	mux.GET("/", rootHandler)
+	mux.GET("/version", versionHandler)
+	mux.GET("/healthcheck", healthCheckHandler)
+
 	mux.GET("/ocr/:pid", ocrGenerateHandler)
 	mux.GET("/ocr/:pid/status", ocrStatusHandler)
 	mux.GET("/ocr/:pid/text", ocrTextHandler)
@@ -49,10 +56,40 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+config.listenPort.value, cors.Default().Handler(mux)))
 }
 
-/**
- * Handle a request for /
- */
+// Handle a request for /
 func rootHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	logger.Printf("%s %s", r.Method, r.RequestURI)
 	fmt.Fprintf(w, "OCR service version %s", version)
 }
+
+// Handle a request for /version
+func versionHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	output, jsonErr := json.Marshal(versionDetails)
+	if jsonErr != nil {
+		logger.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, string(output))
+}
+
+// Handle a request for /healthcheck
+func healthCheckHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	health := healthcheckDetails{ healthCheckStatus{ Healthy: true, Message: "Not implemented"}}
+
+	output, jsonErr := json.Marshal(health)
+	if jsonErr != nil {
+		logger.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, string(output))
+}
+
+//
+// end of file
+//

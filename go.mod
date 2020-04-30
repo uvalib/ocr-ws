@@ -1,5 +1,7 @@
 module github.com/uvalib/ocr-ws
 
+go 1.14
+
 require (
 	github.com/aws/aws-sdk-go v1.19.11
 	github.com/davecgh/go-spew v1.1.1 // indirect
