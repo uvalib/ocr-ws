@@ -11,3 +11,5 @@ bin
 dist/
 env.*
 .idea
+buildtag.*
+package/scripts/*.ksh
