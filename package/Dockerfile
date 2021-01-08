@@ -45,7 +45,8 @@ COPY --from=builder /build/bin/ocr-ws.linux $APP_HOME/bin/ocr-ws
 RUN chown webservice:webservice /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws && chmod 755 /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws
 
 # Add the build tag
-COPY buildtag.* $APP_HOME/
+ARG BUILD_TAG
+RUN test -n "$BUILD_TAG" && touch $APP_HOME/buildtag.build-$BUILD_TAG || touch $APP_HOME/buildtag.build-0
 
 # Specify the user
 USER webservice
