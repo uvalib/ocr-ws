@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -13,9 +12,8 @@ import (
 	"github.com/rs/cors"
 )
 
-const version = "0.1"
+const version = "0.9.0"
 
-var logger *log.Logger
 var sess *session.Session
 var client *http.Client
 
@@ -23,11 +21,9 @@ var client *http.Client
  * Main entry point for the web service
  */
 func main() {
-	logger = log.New(os.Stdout, "", log.LstdFlags)
-
 	// Load cfg
-	logger.Printf("===> ocr-ws starting up <===")
-	logger.Printf("Load configuration...")
+	log.Printf("===> ocr-ws starting up <===")
+	log.Printf("Load configuration...")
 	getConfigValues()
 
 	// load version details
@@ -51,14 +47,14 @@ func main() {
 	mux.GET("/ocr/:pid", ocrGenerateHandler)
 	mux.GET("/ocr/:pid/status", ocrStatusHandler)
 	mux.GET("/ocr/:pid/text", ocrTextHandler)
-	logger.Printf("Start service on port %s", config.listenPort.value)
+	log.Printf("Start service on port %s", config.listenPort.value)
 
 	log.Fatal(http.ListenAndServe(":"+config.listenPort.value, cors.Default().Handler(mux)))
 }
 
 // Handle a request for /
 func rootHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	logger.Printf("%s %s", r.Method, r.RequestURI)
+	log.Printf("%s %s", r.Method, r.RequestURI)
 	fmt.Fprintf(w, "OCR service version %s", version)
 }
 
@@ -67,7 +63,7 @@ func versionHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params)
 
 	output, jsonErr := json.Marshal(versionDetails)
 	if jsonErr != nil {
-		logger.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -82,7 +78,7 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Par
 
 	output, jsonErr := json.Marshal(health)
 	if jsonErr != nil {
-		logger.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -104,7 +105,7 @@ func writeFileWithContents(filename, contents string) error {
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0664)
 
 	if err != nil {
-		logger.Printf("Unable to open file: %s", err.Error())
+		log.Printf("Unable to open file: %s", err.Error())
 		return fmt.Errorf("unable to open ocr file: [%s]", filename)
 	}
 
@@ -113,7 +114,7 @@ func writeFileWithContents(filename, contents string) error {
 	w := bufio.NewWriter(f)
 
 	if _, err = fmt.Fprintf(w, "%s", contents); err != nil {
-		logger.Printf("Unable to write file: %s", err.Error())
+		log.Printf("Unable to write file: %s", err.Error())
 		return fmt.Errorf("unable to write ocr file: [%s]", filename)
 	}
 
@@ -138,14 +139,14 @@ func processEmails(workdir, subject, body, attachment string) {
 			emailResults(e, subject, body, attachment)
 		}
 	} else {
-		logger.Printf("error retrieving email addresses: [%s]", err.Error())
+		log.Printf("error retrieving email addresses: [%s]", err.Error())
 	}
 }
 
 func processCallbacks(workdir, reqid, status, message string) {
 	req, reqErr := reqGetRequestInfo(workdir, reqid)
 	if reqErr != nil {
-		logger.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
+		log.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
 
 		now := time.Now().Unix()
 		then := now - 60
@@ -160,12 +161,12 @@ func processCallbacks(workdir, reqid, status, message string) {
 			tsJobStatusCallback(c, status, message, req.Started, req.Finished)
 		}
 	} else {
-		logger.Printf("error retrieving callbacks: [%s]", err.Error())
+		log.Printf("error retrieving callbacks: [%s]", err.Error())
 	}
 }
 
 func processOcrSuccess(res ocrResultsInfo) {
-	logger.Printf("[%s] processing and posting successful OCR", res.pid)
+	log.Printf("[%s] processing and posting successful OCR", res.pid)
 
 	reqUpdateFinished(res.workDir, res.reqid)
 
@@ -186,7 +187,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 		// save to page file
 		if err := writeFileWithContents(ocrOneFile, ocrOneText); err != nil {
-			logger.Printf("[%s] error creating results page file: [%s]", res.pid, err.Error())
+			log.Printf("[%s] error creating results page file: [%s]", res.pid, err.Error())
 		}
 
 		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
@@ -194,13 +195,13 @@ func processOcrSuccess(res ocrResultsInfo) {
 		// post to tracksys
 
 		if err := tsPostText(p.pid, p.text); err != nil {
-			logger.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
+			log.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
 		}
 	}
 
 	// save to all file
 	if err := writeFileWithContents(ocrAllFile, ocrAllText); err != nil {
-		logger.Printf("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
+		log.Printf("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
 		res.details = "OCR generation process finalization failed"
 		processOcrFailure(res)
 		return
@@ -213,7 +214,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 }
 
 func processOcrFailure(res ocrResultsInfo) {
-	logger.Printf("[%s] processing failed OCR", res.pid)
+	log.Printf("[%s] processing failed OCR", res.pid)
 
 	reqUpdateFinished(res.workDir, res.reqid)
 

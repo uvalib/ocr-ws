@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ type ocrInfo struct {
  * Handle a request for OCR of page images
  */
 func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	logger.Printf("%s %s", r.Method, r.RequestURI)
+	log.Printf("%s %s", r.Method, r.RequestURI)
 
 	ocr := ocrInfo{}
 
@@ -54,7 +55,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		ts, tsErr := tsGetPidInfo(ocr.req.pid, ocr.req.unit)
 
 		if tsErr != nil {
-			logger.Printf("Tracksys API error: [%s]", tsErr.Error())
+			log.Printf("Tracksys API error: [%s]", tsErr.Error())
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
 			return
@@ -74,7 +75,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	// see if request is already in progress
 	if reqInProgress(ocr.workDir) == true {
 		// request is in progress; don't start another request, just add email/callback to completion notification list
-		logger.Printf("Request already in progress; adding email/callback to completion notification list")
+		log.Printf("Request already in progress; adding email/callback to completion notification list")
 		reqAddEmail(ocr.workDir, ocr.req.email)
 		reqAddCallback(ocr.workDir, ocr.req.callback)
 		fmt.Print(w, "OK")
@@ -84,7 +85,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
-		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
+		log.Printf("Tracksys API error: [%s]", tsErr.Error())
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
 		return
@@ -98,7 +99,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		// check if ocr/transcription already exists; if so, just email now
 
 		if ocr.ts.Pid.TextSource != "" {
-			logger.Printf("OCR/transcription already exists; emailing now")
+			log.Printf("OCR/transcription already exists; emailing now")
 
 			reqAddEmail(ocr.workDir, ocr.req.email)
 			reqAddCallback(ocr.workDir, ocr.req.callback)
@@ -112,7 +113,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 			for _, p := range ocr.ts.Pages {
 				txt, txtErr := tsGetText(p.Pid)
 				if txtErr != nil {
-					logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+					log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 					w.WriteHeader(http.StatusInternalServerError)
 					fmt.Print(w, "ERROR: Could not retrieve page text")
 					res.details = "Error encountered while retrieving text for one or more pages"
@@ -133,7 +134,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 	// check if this is ocr-able
 
 	if ocr.ts.isOcrable == false {
-		logger.Printf("Cannot OCR: [%s]", ocr.ts.Pid.OcrHint)
+		log.Printf("Cannot OCR: [%s]", ocr.ts.Pid.OcrHint)
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Print(w, "ERROR: PID is not in a format conducive to OCR")
 		return
@@ -155,7 +156,7 @@ func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
 	for i, p := range ts.Pages {
 		pageText, txtErr := tsGetText(p.Pid)
 		if txtErr != nil {
-			logger.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+			log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 			return "", errors.New("could not retrieve page text")
 		}
 
@@ -166,7 +167,7 @@ func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
 }
 
 func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	logger.Printf("%s %s", r.Method, r.RequestURI)
+	log.Printf("%s %s", r.Method, r.RequestURI)
 
 	ocr := ocrInfo{}
 
@@ -177,7 +178,7 @@ func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
-		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
+		log.Printf("Tracksys API error: [%s]", tsErr.Error())
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
 		return
@@ -195,7 +196,7 @@ func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Pa
 }
 
 func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	logger.Printf("%s %s", r.Method, r.RequestURI)
+	log.Printf("%s %s", r.Method, r.RequestURI)
 
 	ocr := ocrInfo{}
 
@@ -206,7 +207,7 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
-		logger.Printf("Tracksys API error: [%s]", tsErr.Error())
+		log.Printf("Tracksys API error: [%s]", tsErr.Error())
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
 		return
@@ -233,7 +234,7 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 
 	output, jsonErr := json.Marshal(status)
 	if jsonErr != nil {
-		logger.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "ERROR: Could not serialize PID status: [%s]", jsonErr.Error())
 		return
@@ -254,7 +255,7 @@ func generateOcr(ocr ocrInfo) {
 	reqAddCallback(ocr.workDir, ocr.req.callback)
 
 	if err := awsGenerateOcr(ocr); err != nil {
-		logger.Printf("generateOcr() failed: [%s]", err.Error())
+		log.Printf("generateOcr() failed: [%s]", err.Error())
 
 		res := ocrResultsInfo{}
 

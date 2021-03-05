@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"gopkg.in/gomail.v2"
 )
 
@@ -11,15 +13,15 @@ func sendEmail(m *gomail.Message) {
 	subject := m.GetHeader("Subject")
 
 	if err := d.DialAndSend(m); err != nil {
-		logger.Printf("Failed to send email to %s: [%s]", to, err.Error())
+		log.Printf("Failed to send email to %s: [%s]", to, err.Error())
 	} else {
-		logger.Printf("Email sent to %s with subject %s", to, subject)
+		log.Printf("Email sent to %s with subject %s", to, subject)
 	}
 }
 
 func emailResults(to, subject, body, attachment string) {
 	if to == "" {
-		logger.Printf("missing email address")
+		log.Printf("missing email address")
 		return
 	}
 

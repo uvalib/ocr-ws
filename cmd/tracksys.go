@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -46,13 +47,13 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
-		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
 		return nil, errors.New("failed to create new manifest request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		logger.Printf("client.Do() failed: %s", resErr.Error())
+		log.Printf("client.Do() failed: %s", resErr.Error())
 		return nil, errors.New("failed to receive manifest response")
 	}
 
@@ -64,12 +65,12 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 
 	buf, _ := ioutil.ReadAll(res.Body)
 	if jErr := json.Unmarshal(buf, &tsPages); jErr != nil {
-		logger.Printf("Unmarshal() failed: %s", jErr.Error())
+		log.Printf("Unmarshal() failed: %s", jErr.Error())
 		return nil, fmt.Errorf("failed to unmarshal manifest response: [%s]", buf)
 	}
 
 	for i, p := range tsPages {
-		logger.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(tsPages), p.Pid, p.Filename, p.Title, p.TextSource)
+		log.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(tsPages), p.Pid, p.Filename, p.Title, p.TextSource)
 	}
 
 	return tsPages, nil
@@ -80,13 +81,13 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
-		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
 		return nil, errors.New("failed to create new pid request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		logger.Printf("client.Do() failed: %s", resErr.Error())
+		log.Printf("client.Do() failed: %s", resErr.Error())
 		return nil, errors.New("failed to receive pid response")
 	}
 
@@ -98,19 +99,19 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 
 	buf, _ := ioutil.ReadAll(res.Body)
 	if jErr := json.Unmarshal(buf, &ts.Pid); jErr != nil {
-		logger.Printf("Unmarshal() failed: %s", jErr.Error())
+		log.Printf("Unmarshal() failed: %s", jErr.Error())
 		return nil, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
 	}
 
-	logger.Printf("Type            : [%s]", ts.Pid.Type)
-	logger.Printf("TextSource      : [%s]", ts.Pid.TextSource)
-	logger.Printf("OcrHint         : [%s]", ts.Pid.OcrHint)
-	logger.Printf("OcrCandidate    : [%t]", ts.Pid.OcrCandidate)
-	logger.Printf("OcrLanguageHint : [%s]", ts.Pid.OcrLanguageHint)
+	log.Printf("Type            : [%s]", ts.Pid.Type)
+	log.Printf("TextSource      : [%s]", ts.Pid.TextSource)
+	log.Printf("OcrHint         : [%s]", ts.Pid.OcrHint)
+	log.Printf("OcrCandidate    : [%t]", ts.Pid.OcrCandidate)
+	log.Printf("OcrLanguageHint : [%s]", ts.Pid.OcrLanguageHint)
 
 	switch {
 	case ts.Pid.Type == "master_file":
-		logger.Printf("    [page 1 / 1]  { [%s]  [%s]  [%s]  [%s] }", ts.Pid.Pid, ts.Pid.Filename, ts.Pid.Title, ts.Pid.TextSource)
+		log.Printf("    [page 1 / 1]  { [%s]  [%s]  [%s]  [%s] }", ts.Pid.Pid, ts.Pid.Filename, ts.Pid.Title, ts.Pid.TextSource)
 
 		ts.Pages = append(ts.Pages, ts.Pid)
 		return &ts, nil
@@ -120,7 +121,7 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 
 		ts.Pages, mfErr = tsGetPagesFromManifest(pid, unit)
 		if mfErr != nil {
-			logger.Printf("tsGetPagesFromManifest() failed: [%s]", mfErr.Error())
+			log.Printf("tsGetPagesFromManifest() failed: [%s]", mfErr.Error())
 			return nil, mfErr
 		}
 
@@ -167,13 +168,13 @@ func tsGetText(pid string) (string, error) {
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
-		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
 		return "", errors.New("failed to create new fulltext request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		logger.Printf("client.Do() failed: %s", resErr.Error())
+		log.Printf("client.Do() failed: %s", resErr.Error())
 		return "", errors.New("failed to receive fulltext response")
 	}
 
@@ -183,7 +184,7 @@ func tsGetText(pid string) (string, error) {
 
 	text, textErr := ioutil.ReadAll(res.Body)
 	if textErr != nil {
-		logger.Printf("ReadAll() failed: %s", textErr.Error())
+		log.Printf("ReadAll() failed: %s", textErr.Error())
 		return "", errors.New("failed to read fulltext response")
 	}
 
@@ -211,7 +212,7 @@ func tsPostText(pid, text string) error {
 	// if url not set, just skip over this
 
 	//	if config.tsAPIPostFullTextTemplate.value == "" {
-	//logger.Printf("SKIPPING TRACKSYS POST")
+	//log.Printf("SKIPPING TRACKSYS POST")
 	//		return nil
 	//	}
 
@@ -223,20 +224,20 @@ func tsPostText(pid, text string) error {
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
-		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("failed to create new fulltext post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		logger.Printf("client.Do() failed: %s", resErr.Error())
+		log.Printf("client.Do() failed: %s", resErr.Error())
 		return errors.New("failed to receive fulltext post response")
 	}
 
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("[%s] posted ocr: [%s] <= [%s] (%d)", pid, buf, textSnippet(text), len(text))
+	log.Printf("[%s] posted ocr: [%s] <= [%s] (%d)", pid, buf, textSnippet(text), len(text))
 
 	return nil
 }
@@ -256,7 +257,7 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 
 	output, jsonErr := json.Marshal(jobstatus)
 	if jsonErr != nil {
-		logger.Printf("Failed to serialize callback json: [%s]", jsonErr.Error())
+		log.Printf("Failed to serialize callback json: [%s]", jsonErr.Error())
 		return errors.New("failed to serialze job status callback json")
 	}
 
@@ -268,20 +269,20 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
-		logger.Printf("NewRequest() failed: %s", reqErr.Error())
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("failed to create new job status post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		logger.Printf("client.Do() failed: %s", resErr.Error())
+		log.Printf("client.Do() failed: %s", resErr.Error())
 		return errors.New("failed to receive job status post response")
 	}
 
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	logger.Printf("posted job status: [%s]; response: [%s]", string(output), buf)
+	log.Printf("posted job status: [%s]; response: [%s]", string(output), buf)
 
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 )
@@ -82,7 +83,7 @@ func ensureConfigStringSet(item *configStringItem) bool {
 
 	if item.value == "" {
 		isSet = false
-		logger.Printf("[ERROR] %s is not set, use %s variable or -%s flag", item.desc, item.env, item.flag)
+		log.Printf("[ERROR] %s is not set, use %s variable or -%s flag", item.desc, item.env, item.flag)
 	}
 
 	return isSet
@@ -160,24 +161,24 @@ func getConfigValues() {
 		os.Exit(1)
 	}
 
-	logger.Printf("[CONFIG] listenPort            = [%s]", config.listenPort.value)
-	logger.Printf("[CONFIG] storageDir            = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] archiveDir            = [%s]", config.archiveDir.value)
-	logger.Printf("[CONFIG] lambdaAttempts        = [%s]", config.lambdaAttempts.value)
-	logger.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
-	logger.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
-	logger.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
-	logger.Printf("[CONFIG] awsDisabled           = [%s]", strconv.FormatBool(config.awsDisabled.value))
-	logger.Printf("[CONFIG] awsAccessKeyID        = [%s]", maskValue(config.awsAccessKeyID.value))
-	logger.Printf("[CONFIG] awsSecretAccessKey    = [%s]", maskValue(config.awsSecretAccessKey.value))
-	logger.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)
-	logger.Printf("[CONFIG] awsSwfDomain          = [%s]", config.awsSwfDomain.value)
-	logger.Printf("[CONFIG] awsSwfTaskList        = [%s]", config.awsSwfTaskList.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowType    = [%s]", config.awsSwfWorkflowType.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowVersion = [%s]", config.awsSwfWorkflowVersion.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowTimeout = [%s]", config.awsSwfWorkflowTimeout.value)
-	logger.Printf("[CONFIG] awsSwfDecisionTimeout = [%s]", config.awsSwfDecisionTimeout.value)
-	logger.Printf("[CONFIG] awsLambdaFunction     = [%s]", config.awsLambdaFunction.value)
-	logger.Printf("[CONFIG] awsLambdaTimeout      = [%s]", config.awsLambdaTimeout.value)
-	logger.Printf("[CONFIG] awsBucketName         = [%s]", config.awsBucketName.value)
+	log.Printf("[CONFIG] listenPort            = [%s]", config.listenPort.value)
+	log.Printf("[CONFIG] storageDir            = [%s]", config.storageDir.value)
+	log.Printf("[CONFIG] archiveDir            = [%s]", config.archiveDir.value)
+	log.Printf("[CONFIG] lambdaAttempts        = [%s]", config.lambdaAttempts.value)
+	log.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
+	log.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
+	log.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
+	log.Printf("[CONFIG] awsDisabled           = [%s]", strconv.FormatBool(config.awsDisabled.value))
+	log.Printf("[CONFIG] awsAccessKeyID        = [%s]", maskValue(config.awsAccessKeyID.value))
+	log.Printf("[CONFIG] awsSecretAccessKey    = [%s]", maskValue(config.awsSecretAccessKey.value))
+	log.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)
+	log.Printf("[CONFIG] awsSwfDomain          = [%s]", config.awsSwfDomain.value)
+	log.Printf("[CONFIG] awsSwfTaskList        = [%s]", config.awsSwfTaskList.value)
+	log.Printf("[CONFIG] awsSwfWorkflowType    = [%s]", config.awsSwfWorkflowType.value)
+	log.Printf("[CONFIG] awsSwfWorkflowVersion = [%s]", config.awsSwfWorkflowVersion.value)
+	log.Printf("[CONFIG] awsSwfWorkflowTimeout = [%s]", config.awsSwfWorkflowTimeout.value)
+	log.Printf("[CONFIG] awsSwfDecisionTimeout = [%s]", config.awsSwfDecisionTimeout.value)
+	log.Printf("[CONFIG] awsLambdaFunction     = [%s]", config.awsLambdaFunction.value)
+	log.Printf("[CONFIG] awsLambdaTimeout      = [%s]", config.awsLambdaTimeout.value)
+	log.Printf("[CONFIG] awsBucketName         = [%s]", config.awsBucketName.value)
 }
