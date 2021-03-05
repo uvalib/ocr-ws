@@ -11,11 +11,11 @@ import (
 )
 
 type reqInfo struct {
-	ReqId         string
+	ReqID         string
 	Started       string
 	Finished      string
-	AWSWorkflowId string
-	AWSRunId      string
+	AWSWorkflowID string
+	AWSRunID      string
 }
 
 func reqFileName(path string) string {
@@ -74,23 +74,23 @@ func reqInProgress(path string) bool {
 		return false
 	}
 
-	if req.AWSWorkflowId == "" || req.AWSRunId == "" {
+	if req.AWSWorkflowID == "" || req.AWSRunID == "" {
 		logger.Printf("no valid request info found; checking timestamps")
 
 		return reqInProgressByDates(req)
 	}
 
-	logger.Printf("found existing workflowId: [%s] / runId: [%s]", req.AWSWorkflowId, req.AWSRunId)
+	logger.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
 
 	// check if this is an open workflow
-	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowId, req.AWSRunId)
+	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowID, req.AWSRunID)
 	if openErr == nil && open == true {
 		logger.Printf("workflow execution is open; in progress")
 		return true
 	}
 
 	// check if this is a closed workflow
-	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowId, req.AWSRunId)
+	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowID, req.AWSRunID)
 	if closedErr == nil && closed == true {
 		logger.Printf("workflow execution is closed; not in progress")
 		return false
@@ -109,7 +109,7 @@ func reqInitialize(path, reqid string) error {
 	db, err := reqOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[req] failed to open requests database when initializing: [%s]", err.Error())
-		return errors.New("Failed to open requests database")
+		return errors.New("failed to open requests database")
 	}
 	defer db.Close()
 
@@ -120,7 +120,7 @@ func reqInitialize(path, reqid string) error {
 	if err != nil {
 		logger.Printf("[req] failed to create request_info table: [%s]", err.Error())
 		logger.Printf("%q", err)
-		return errors.New("Failed to create request info table")
+		return errors.New("failed to create request info table")
 	}
 
 	query = `create table if not exists recipients (id integer not null primary key, type integer, value text unique);`
@@ -128,24 +128,24 @@ func reqInitialize(path, reqid string) error {
 	if err != nil {
 		logger.Printf("[req] failed to create recipients table: [%s]", err.Error())
 		logger.Printf("%q", err)
-		return errors.New("Failed to create recipients table")
+		return errors.New("failed to create recipients table")
 	}
 
 	tx, txErr := db.Begin()
 	if txErr != nil {
 		logger.Printf("[req] failed to create request transaction: [%s]", txErr.Error())
-		return errors.New("Failed to create request transaction")
+		return errors.New("failed to create request transaction")
 	}
 	stmt, err := tx.Prepare("insert into request_info (req_id, started, finished, aws_workflow_id, aws_run_id) values (?, '', '', '', '');")
 	if err != nil {
 		logger.Printf("[req] failed to prepare request transaction: [%s]", err.Error())
-		return errors.New("Failed to prepare request transaction")
+		return errors.New("failed to prepare request transaction")
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(reqid)
 	if err != nil {
 		logger.Printf("[req] failed to execute request transaction: [%s]", err.Error())
-		return errors.New("Failed to execute request transaction")
+		return errors.New("failed to execute request transaction")
 	}
 	tx.Commit()
 
@@ -157,7 +157,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	db, err := reqOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[req] failed to open requests database when getting workflow id: [%s]", err.Error())
-		return nil, errors.New("Failed to open requests database")
+		return nil, errors.New("failed to open requests database")
 	}
 	defer db.Close()
 
@@ -174,15 +174,15 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	rows, err := db.Query(query)
 	if err != nil {
 		logger.Printf("[req] failed to retrieve request info: [%s]", err.Error())
-		return nil, errors.New("Failed to retrieve request info")
+		return nil, errors.New("failed to retrieve request info")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&req.ReqId, &req.Started, &req.Finished, &req.AWSWorkflowId, &req.AWSRunId)
+		err = rows.Scan(&req.ReqID, &req.Started, &req.Finished, &req.AWSWorkflowID, &req.AWSRunID)
 		if err != nil {
 			logger.Printf("[req] failed to scan request info: [%s]", err.Error())
-			return nil, errors.New("Failed to scan request info")
+			return nil, errors.New("failed to scan request info")
 		}
 	}
 
@@ -191,7 +191,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	err = rows.Err()
 	if err != nil {
 		logger.Printf("[req] select query failed: [%s]", err.Error())
-		return nil, errors.New("Failed to select requear info")
+		return nil, errors.New("failed to select request info")
 	}
 
 	logger.Printf("req: %+v", req)
@@ -204,7 +204,7 @@ func reqUpdateRequestColumn(path, reqid, column, value string) error {
 	db, err := reqOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[req] failed to open requests database when updating %s: [%s]", column, err.Error())
-		return errors.New("Failed to open requests database")
+		return errors.New("failed to open requests database")
 	}
 	defer db.Close()
 
@@ -212,7 +212,7 @@ func reqUpdateRequestColumn(path, reqid, column, value string) error {
 	_, err = db.Exec(query)
 	if err != nil {
 		logger.Printf("[req] failed to update %s: [%s]", column, err.Error())
-		return errors.New(fmt.Sprintf("Failed to update %s", column))
+		return fmt.Errorf("failed to update %s", column)
 	}
 
 	return nil
@@ -226,11 +226,11 @@ func reqUpdateFinished(path, reqid string) error {
 	return reqUpdateRequestColumn(path, reqid, "finished", fmt.Sprintf("%d", time.Now().Unix()))
 }
 
-func reqUpdateAwsWorkflowId(path, reqid, value string) error {
+func reqUpdateAwsWorkflowID(path, reqid, value string) error {
 	return reqUpdateRequestColumn(path, reqid, "aws_workflow_id", value)
 }
 
-func reqUpdateAwsRunId(path, reqid, value string) error {
+func reqUpdateAwsRunID(path, reqid, value string) error {
 	return reqUpdateRequestColumn(path, reqid, "aws_run_id", value)
 }
 
@@ -243,7 +243,7 @@ func reqAddRecipientByType(path string, rtype int, rvalue string) error {
 	db, err := reqOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[req] failed to open requests database when adding email: [%s]", err.Error())
-		return errors.New("Failed to open requests database")
+		return errors.New("failed to open requests database")
 	}
 	defer db.Close()
 
@@ -251,18 +251,18 @@ func reqAddRecipientByType(path string, rtype int, rvalue string) error {
 	tx, txErr := db.Begin()
 	if txErr != nil {
 		logger.Printf("[req] failed to create recipient transaction: [%s]", txErr.Error())
-		return errors.New("Failed to create recipient transaction")
+		return errors.New("failed to create recipient transaction")
 	}
 	stmt, err := tx.Prepare("insert into recipients (type, value) values(?, ?)")
 	if err != nil {
 		logger.Printf("[req] failed to prepare recipient transaction: [%s]", err.Error())
-		return errors.New("Failed to prepare recipient transaction")
+		return errors.New("failed to prepare recipient transaction")
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(rtype, rvalue)
 	if err != nil {
 		logger.Printf("[req] failed to execute recipient transaction: [%s]", err.Error())
-		return errors.New("Failed to execute recipient transaction")
+		return errors.New("failed to execute recipient transaction")
 	}
 	tx.Commit()
 
@@ -282,7 +282,7 @@ func reqGetRecipientsByType(path string, rtype int) ([]string, error) {
 	db, err := reqOpenDatabase(path)
 	if err != nil {
 		logger.Printf("[req] failed to open requests database when getting recipients: [%s]", err.Error())
-		return nil, errors.New("Failed to open requests database")
+		return nil, errors.New("failed to open requests database")
 	}
 	defer db.Close()
 
@@ -294,7 +294,7 @@ func reqGetRecipientsByType(path string, rtype int) ([]string, error) {
 	rows, err := db.Query(query)
 	if err != nil {
 		logger.Printf("[req] failed to retrieve values: [%s]", err.Error())
-		return nil, errors.New("Failed to retrieve values")
+		return nil, errors.New("failed to retrieve values")
 	}
 	defer rows.Close()
 
@@ -303,7 +303,7 @@ func reqGetRecipientsByType(path string, rtype int) ([]string, error) {
 		err = rows.Scan(&value)
 		if err != nil {
 			logger.Printf("[req] failed to scan value: [%s]", err.Error())
-			return nil, errors.New("Failed to scan value")
+			return nil, errors.New("failed to scan value")
 		}
 
 		values = appendStringIfMissing(values, value)
@@ -314,7 +314,7 @@ func reqGetRecipientsByType(path string, rtype int) ([]string, error) {
 	err = rows.Err()
 	if err != nil {
 		logger.Printf("[req] select query failed: [%s]", err.Error())
-		return nil, errors.New("Failed to select values")
+		return nil, errors.New("failed to select values")
 	}
 
 	return values, nil

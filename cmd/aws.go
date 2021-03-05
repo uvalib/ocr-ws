@@ -25,8 +25,8 @@ type decisionInfo struct {
 	input        string
 	req          workflowRequest
 	taskToken    string
-	workflowId   string
-	lastEventId  int64
+	workflowID   string
+	lastEventID  int64
 	allEvents    []*swf.HistoryEvent
 	recentEvents []*swf.HistoryEvent
 	ocrResults   []*swf.HistoryEvent
@@ -96,7 +96,7 @@ func awsScheduleLambdaFunction(input, control string) *swf.Decision {
 			SetControl(control).
 			SetName(config.awsLambdaFunction.value).
 			SetStartToCloseTimeout(config.awsLambdaTimeout.value).
-			SetId(randomId()).
+			SetId(randomID()).
 			SetInput(input))
 
 	return decision
@@ -108,17 +108,17 @@ func awsStartTimer(duration int, control string) *swf.Decision {
 		SetStartTimerDecisionAttributes((&swf.StartTimerDecisionAttributes{}).
 			SetControl(control).
 			SetStartToFireTimeout(strconv.Itoa(duration)).
-			SetTimerId(randomId()))
+			SetTimerId(randomID()))
 
 	return decision
 }
 
-func awsEventWithId(events []*swf.HistoryEvent, eventId int64) *swf.HistoryEvent {
+func awsEventWithID(events []*swf.HistoryEvent, eventID int64) *swf.HistoryEvent {
 	// event n seems to always be at index n-1 in the event history, but
 	// in the absence of documentation of this, we check the list to be safe
 
 	for _, e := range events {
-		if eventId == *e.EventId {
+		if eventID == *e.EventId {
 			return e
 		}
 	}
@@ -162,7 +162,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 		}
 
 		// get pid from original request
-		o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+		o := awsEventWithID(info.allEvents, *a.ScheduledEventId)
 		origLambdaInput := *o.LambdaFunctionScheduledEventAttributes.Input
 
 		lambdaReq := lambdaRequest{}
@@ -213,13 +213,13 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				}
 			}
 			info.req.Pages = pages
-			//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
-			logger.Printf("[%s] reqid: [%s]  pages: %d", info.workflowId, info.req.ReqID, len(info.req.Pages))
+			//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowID, info.input, len(info.req.Pages))
+			logger.Printf("[%s] reqid: [%s]  pages: %d", info.workflowID, info.req.ReqID, len(info.req.Pages))
 		}
 
 		// collect the completed (successful) OCR events, which contain the OCR results
 		if t == "LambdaFunctionCompleted" {
-			//logger.Printf("[%s] lambda completed", info.workflowId)
+			//logger.Printf("[%s] lambda completed", info.workflowID)
 			info.ocrResults = append(info.ocrResults, e)
 		}
 
@@ -230,7 +230,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 		// from here on out, only consider recent events (events that occurred since
 		// since the last time a decision task for this workflow was processed)
-		if *e.EventId <= info.lastEventId {
+		if *e.EventId <= info.lastEventID {
 			continue
 		}
 
@@ -243,10 +243,10 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	}
 
 	if workflowHalted {
-		logger.Printf("[%s] WORKFLOW WAS PREVIOUSLY HALTED", info.workflowId)
+		logger.Printf("[%s] WORKFLOW WAS PREVIOUSLY HALTED", info.workflowID)
 	}
 
-	logger.Printf("[%s] lambdas completed: %d / %d", info.workflowId, len(info.ocrResults), len(info.req.Pages))
+	logger.Printf("[%s] lambdas completed: %d / %d", info.workflowID, len(info.ocrResults), len(info.req.Pages))
 
 	recentCounts := make(map[string]int)
 	var lastEventType string
@@ -254,8 +254,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		recentCounts[*e.EventType]++
 		lastEventType = *e.EventType
 	}
-	logger.Printf("[%s] recent events: %s", info.workflowId, countsToString(recentCounts))
-	logger.Printf("[%s] last event type: [%s]", info.workflowId, lastEventType)
+	logger.Printf("[%s] recent events: %s", info.workflowID, countsToString(recentCounts))
+	logger.Printf("[%s] last event type: [%s]", info.workflowID, lastEventType)
 
 	// we can now make decisions about the workflow:
 	// if the most recent event type is workflow execution start, kick off lambdas.
@@ -275,8 +275,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 	// decision(s): schedule a lambda for each pid.  if no pids, fail the workflow
 	//case lastEventType == "WorkflowExecutionStarted":
 	case recentCounts["WorkflowExecutionStarted"] > 0:
-		//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowId, info.input, len(info.req.Pages))
-		logger.Printf("[%s] scheduling %d lambdas...", info.workflowId, len(info.req.Pages))
+		//logger.Printf("[%s] input = [%s] (%d pids)", info.workflowID, info.input, len(info.req.Pages))
+		logger.Printf("[%s] scheduling %d lambdas...", info.workflowID, len(info.req.Pages))
 
 		for _, page := range info.req.Pages {
 			req := lambdaRequest{}
@@ -290,13 +290,13 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 			input, jsonErr := json.Marshal(req)
 			if jsonErr != nil {
-				logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jsonErr.Error())
+				logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowID, jsonErr.Error())
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda creation failed"))
 				awsFinalizeFailure(info, "OCR generation process failed (initialization failed)")
 				break
 			}
 
-			//logger.Printf("[%s] lambda json: [%s]", info.workflowId, input)
+			//logger.Printf("[%s] lambda json: [%s]", info.workflowID, input)
 
 			decisions = append(decisions, awsScheduleLambdaFunction(string(input), "1"))
 		}
@@ -307,7 +307,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		// did a previous completion attempt fail?  try, try again
 		if e := awsEventWithType(info.recentEvents, "CompleteWorkflowExecutionFailed"); e != nil {
 			a := e.CompleteWorkflowExecutionFailedEventAttributes
-			logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowId, *a.Cause)
+			logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowID, *a.Cause)
 			decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
 		} else {
 			decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("success"))
@@ -333,7 +333,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decision(s): ???
 			if t == "WorkflowExecutionFailed" {
 				a := e.WorkflowExecutionFailedEventAttributes
-				logger.Printf("[%s] start workflow execution failed (%s) - (%s)", info.workflowId, *a.Reason, *a.Details)
+				logger.Printf("[%s] start workflow execution failed (%s) - (%s)", info.workflowID, *a.Reason, *a.Details)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution failed"))
 				awsFinalizeFailure(info, "OCR generation process failed (could not start process)")
 				break EventsProcessingLoop
@@ -346,7 +346,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				// decision(s): ???
 				if t == "CompleteWorkflowExecutionFailed" {
 					a := e.CompleteWorkflowExecutionFailedEventAttributes
-					logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowId, *a.Cause)
+					logger.Printf("[%s] complete workflow execution failed (%s)", info.workflowID, *a.Cause)
 					decisions = append([]*swf.Decision{}, awsCompleteWorkflowExecution("SUCCESS"))
 					break EventsProcessingLoop
 				}
@@ -356,7 +356,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decision(s): ???
 			if t == "FailWorkflowExecutionFailed" {
 				a := e.FailWorkflowExecutionFailedEventAttributes
-				logger.Printf("[%s] fail workflow execution failed (%s)", info.workflowId, *a.Cause)
+				logger.Printf("[%s] fail workflow execution failed (%s)", info.workflowID, *a.Cause)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("FAILURE", "fail workflow execution failed"))
 				break EventsProcessingLoop
 			}
@@ -365,7 +365,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decision(s): ???
 			if t == "StartTimerFailed" {
 				a := e.StartTimerFailedEventAttributes
-				logger.Printf("[%s] start timer failed (%s)", info.workflowId, *a.Cause)
+				logger.Printf("[%s] start timer failed (%s)", info.workflowID, *a.Cause)
 				continue EventsProcessingLoop
 			}
 
@@ -373,7 +373,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decisions(s): ???
 			if t == "WorkflowExecutionSignaled" {
 				a := e.WorkflowExecutionSignaledEventAttributes
-				logger.Printf("[%s] workflow execution signaled (%s) - (%s)", info.workflowId, *a.SignalName, *a.Input)
+				logger.Printf("[%s] workflow execution signaled (%s) - (%s)", info.workflowID, *a.SignalName, *a.Input)
 				continue EventsProcessingLoop
 			}
 
@@ -381,7 +381,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decisions(s): ???
 			if t == "WorkflowExecutionCancelRequested" {
 				//a := e.WorkflowExecutionCancelRequestedEventAttributes
-				logger.Printf("[%s] workflow cancellation requested", info.workflowId)
+				logger.Printf("[%s] workflow cancellation requested", info.workflowID)
 				decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "workflow execution canceled"))
 				awsFinalizeFailure(info, "OCR generation process failed (process was canceled)")
 				break EventsProcessingLoop
@@ -396,12 +396,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 				json.Unmarshal([]byte(*a.Details), &details)
 
 				if details.ErrorType != "" || details.ErrorMessage != "" {
-					logger.Printf("[%s] lambda failed: (%s) : [%s] / [%s]", info.workflowId, reason, details.ErrorType, details.ErrorMessage)
+					logger.Printf("[%s] lambda failed: (%s) : [%s] / [%s]", info.workflowID, reason, details.ErrorType, details.ErrorMessage)
 				} else {
-					logger.Printf("[%s] lambda failed: (%s)", info.workflowId, reason)
+					logger.Printf("[%s] lambda failed: (%s)", info.workflowID, reason)
 				}
 
-				o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+				o := awsEventWithID(info.allEvents, *a.ScheduledEventId)
 				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
 				origLambdaEvent = *a.ScheduledEventId
 			}
@@ -410,7 +410,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			if t == "LambdaFunctionTimedOut" {
 				a := e.LambdaFunctionTimedOutEventAttributes
 
-				o := awsEventWithId(info.allEvents, *a.ScheduledEventId)
+				o := awsEventWithID(info.allEvents, *a.ScheduledEventId)
 				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
 				origLambdaEvent = *a.ScheduledEventId
 				lambdaTimedOut = true
@@ -420,19 +420,19 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 					timeoutStr = fmt.Sprintf(" after %s seconds", *o.LambdaFunctionScheduledEventAttributes.StartToCloseTimeout)
 				}
 
-				logger.Printf("[%s] lambda timed out%s (%s)", info.workflowId, timeoutStr, *a.TimeoutType)
+				logger.Printf("[%s] lambda timed out%s (%s)", info.workflowID, timeoutStr, *a.TimeoutType)
 			}
 
 			// if this a timer that fired, rerun the associated lambda
 			if t == "TimerFired" {
 				a := e.TimerFiredEventAttributes
 
-				logger.Printf("[%s] timer fired", info.workflowId)
+				logger.Printf("[%s] timer fired", info.workflowID)
 
-				o := awsEventWithId(info.allEvents, *a.StartedEventId)
+				o := awsEventWithID(info.allEvents, *a.StartedEventId)
 
 				id, _ := strconv.Atoi(*o.TimerStartedEventAttributes.Control)
-				o = awsEventWithId(info.allEvents, int64(id))
+				o = awsEventWithID(info.allEvents, int64(id))
 
 				origLambdaCount = *o.LambdaFunctionScheduledEventAttributes.Control
 				origLambdaInput = *o.LambdaFunctionScheduledEventAttributes.Input
@@ -464,12 +464,12 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 						// reduce scale in steps of 10%, going no lower than 10%
 						scale, _ := strconv.Atoi(req.Scale)
 						newScale := fmt.Sprintf("%d", maxOf(10, scale-10))
-						logger.Printf("[%s] scale: %s%% -> %s%%", info.workflowId, req.Scale, newScale)
+						logger.Printf("[%s] scale: %s%% -> %s%%", info.workflowID, req.Scale, newScale)
 						req.Scale = newScale
 
 						input, jErr := json.Marshal(req)
 						if jErr != nil {
-							logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowId, jErr.Error())
+							logger.Printf("[%s] JSON marshal failed: [%s]", info.workflowID, jErr.Error())
 							decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "lambda re-marshal failed"))
 							awsFinalizeFailure(info, "OCR generation process failed (retry failed)")
 							break
@@ -477,10 +477,10 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 						newLambdaInput = string(input)
 
-						logger.Printf("[%s] new input: %s", info.workflowId, newLambdaInput)
+						logger.Printf("[%s] new input: %s", info.workflowID, newLambdaInput)
 					}
 
-					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowId, origLambdaEvent, count)
+					logger.Printf("[%s] retrying lambda event %d (attempt %d)", info.workflowID, origLambdaEvent, count)
 
 					decisions = append(decisions, awsScheduleLambdaFunction(newLambdaInput, strconv.Itoa(count)))
 				} else {
@@ -493,7 +493,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					// limit number of reruns
 					if count >= maxAttempts {
-						logger.Printf("[%s] maximum lambda attempts reached (%d); failing", info.workflowId, maxAttempts)
+						logger.Printf("[%s] maximum lambda attempts reached (%d); failing", info.workflowID, maxAttempts)
 						decisions = append([]*swf.Decision{}, awsFailWorkflowExecution("failure", "maximum OCR attempts reached for one or more pages"))
 						awsFinalizeFailure(info, "OCR generation process failed (maximum attempts reached)")
 						break EventsProcessingLoop
@@ -501,7 +501,7 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 					delay := int(math.Pow(2, float64(count))) + randpool.Intn(30)
 
-					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowId, origLambdaEvent, delay)
+					logger.Printf("[%s] scheduling lambda event %d to be retried in %d seconds...", info.workflowID, origLambdaEvent, delay)
 
 					decisions = append(decisions, awsStartTimer(delay, fmt.Sprintf("%d", origLambdaEvent)))
 				}
@@ -516,11 +516,11 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		decisionCounts[*d.DecisionType]++
 
 		if err := d.Validate(); err != nil {
-			logger.Printf("[%s] decision validation error: [%s]", info.workflowId, err.Error())
+			logger.Printf("[%s] decision validation error: [%s]", info.workflowID, err.Error())
 			return
 		}
 	}
-	logger.Printf("[%s] decision(s): %s", info.workflowId, countsToString(decisionCounts))
+	logger.Printf("[%s] decision(s): %s", info.workflowID, countsToString(decisionCounts))
 
 	// build, validate, and send response
 
@@ -529,14 +529,14 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		SetTaskToken(info.taskToken)
 
 	if err := respParams.Validate(); err != nil {
-		logger.Printf("[%s] respond validation error: [%s]", info.workflowId, err.Error())
+		logger.Printf("[%s] respond validation error: [%s]", info.workflowID, err.Error())
 		return
 	}
 
 	_, respErr := svc.RespondDecisionTaskCompleted(respParams)
 
 	if respErr != nil {
-		logger.Printf("[%s] respond error: [%s]", info.workflowId, respErr.Error())
+		logger.Printf("[%s] respond error: [%s]", info.workflowID, respErr.Error())
 		return
 	}
 }
@@ -558,7 +558,7 @@ func awsPollForDecisionTasks() {
 		pollErr := svc.PollForDecisionTaskPages(pollParams,
 			func(page *swf.PollForDecisionTaskOutput, lastPage bool) bool {
 				if page.PreviousStartedEventId != nil {
-					info.lastEventId = *page.PreviousStartedEventId
+					info.lastEventID = *page.PreviousStartedEventId
 				}
 
 				if info.taskToken == "" && page.TaskToken != nil {
@@ -566,9 +566,9 @@ func awsPollForDecisionTasks() {
 					//logger.Printf("TaskToken  = [%s]", info.taskToken)
 				}
 
-				if info.workflowId == "" && page.WorkflowExecution != nil {
-					info.workflowId = *page.WorkflowExecution.WorkflowId
-					logger.Printf("[%s] <-- working decision from this workflow", info.workflowId)
+				if info.workflowID == "" && page.WorkflowExecution != nil {
+					info.workflowID = *page.WorkflowExecution.WorkflowId
+					logger.Printf("[%s] <-- working decision from this workflow", info.workflowID)
 				}
 
 				info.allEvents = append(info.allEvents, page.Events...)
@@ -592,11 +592,11 @@ func awsPollForDecisionTasks() {
 	}
 }
 
-func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowId, runId string) bool {
+func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowID, runID string) bool {
 	for _, e := range ExecutionInfos {
 		logger.Printf("checking WorkflowId: [%s] / RunId: [%s]", *e.Execution.WorkflowId, *e.Execution.RunId)
 
-		if *e.Execution.WorkflowId == workflowId && *e.Execution.RunId == runId {
+		if *e.Execution.WorkflowId == workflowID && *e.Execution.RunId == runID {
 			return true
 		}
 	}
@@ -615,8 +615,8 @@ func awsListWorkflowDateRange() (time.Time, time.Time) {
 	return then, now
 }
 
-func awsWorkflowIsOpen(workflowId, runId string) (bool, error) {
-	logger.Printf("checking for open workflow: [%s]", workflowId)
+func awsWorkflowIsOpen(workflowID, runID string) (bool, error) {
+	logger.Printf("checking for open workflow: [%s]", workflowID)
 
 	svc := swf.New(sess)
 
@@ -625,7 +625,7 @@ func awsWorkflowIsOpen(workflowId, runId string) (bool, error) {
 	input := (&swf.ListOpenWorkflowExecutionsInput{}).
 		SetDomain(config.awsSwfDomain.value).
 		SetExecutionFilter((&swf.WorkflowExecutionFilter{}).
-			SetWorkflowId(workflowId)).
+			SetWorkflowId(workflowID)).
 		SetStartTimeFilter((&swf.ExecutionTimeFilter{}).
 			SetOldestDate(from).
 			SetLatestDate(to))
@@ -634,14 +634,14 @@ func awsWorkflowIsOpen(workflowId, runId string) (bool, error) {
 
 	if err != nil {
 		logger.Printf("list open workflows error: [%s]", err.Error())
-		return false, errors.New("Failed to list open workflows")
+		return false, errors.New("failed to list open workflows")
 	}
 
-	return awsWorkflowInList(res.ExecutionInfos, workflowId, runId), nil
+	return awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
 }
 
-func awsWorkflowIsClosed(workflowId, runId string) (bool, error) {
-	logger.Printf("checking for closed workflow: [%s]", workflowId)
+func awsWorkflowIsClosed(workflowID, runID string) (bool, error) {
+	logger.Printf("checking for closed workflow: [%s]", workflowID)
 
 	svc := swf.New(sess)
 
@@ -650,7 +650,7 @@ func awsWorkflowIsClosed(workflowId, runId string) (bool, error) {
 	input := (&swf.ListClosedWorkflowExecutionsInput{}).
 		SetDomain(config.awsSwfDomain.value).
 		SetExecutionFilter((&swf.WorkflowExecutionFilter{}).
-			SetWorkflowId(workflowId)).
+			SetWorkflowId(workflowID)).
 		SetStartTimeFilter((&swf.ExecutionTimeFilter{}).
 			SetOldestDate(from).
 			SetLatestDate(to))
@@ -659,21 +659,21 @@ func awsWorkflowIsClosed(workflowId, runId string) (bool, error) {
 
 	if err != nil {
 		logger.Printf("list closed workflows error: [%s]", err.Error())
-		return false, errors.New("Failed to list closed workflows")
+		return false, errors.New("failed to list closed workflows")
 	}
 
-	return awsWorkflowInList(res.ExecutionInfos, workflowId, runId), nil
+	return awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
 }
 
 func awsSubmitWorkflow(req workflowRequest) error {
 	svc := swf.New(sess)
 
-	id := randomId()
+	id := randomID()
 
 	input, jsonErr := json.Marshal(req)
 	if jsonErr != nil {
 		logger.Printf("JSON marshal failed: [%s]", jsonErr.Error())
-		return errors.New("Failed to encode workflow request")
+		return errors.New("failed to encode workflow request")
 	}
 
 	startParams := (&swf.StartWorkflowExecutionInput{}).
@@ -693,13 +693,13 @@ func awsSubmitWorkflow(req workflowRequest) error {
 
 	if startErr != nil {
 		logger.Printf("start error: [%s]", startErr.Error())
-		return errors.New("Failed to start OCR workflow")
+		return errors.New("failed to start OCR workflow")
 	}
 
 	logger.Printf("started WorkflowId [%s] with RunId: [%s]", id, *res.RunId)
 
-	reqUpdateAwsWorkflowId(getWorkDir(req.Path), req.ReqID, id)
-	reqUpdateAwsRunId(getWorkDir(req.Path), req.ReqID, *res.RunId)
+	reqUpdateAwsWorkflowID(getWorkDir(req.Path), req.ReqID, id)
+	reqUpdateAwsRunID(getWorkDir(req.Path), req.ReqID, *res.RunId)
 
 	return nil
 }
@@ -738,10 +738,10 @@ func awsOpenLocalFile(localFile string) io.ReadCloser {
 	return f
 }
 
-func awsOpenRemoteUrl(remoteUrl string) io.ReadCloser {
-	h, err := http.Get(remoteUrl)
+func awsOpenRemoteURL(remoteURL string) io.ReadCloser {
+	h, err := http.Get(remoteURL)
 	if err != nil {
-		logger.Printf("failed to open remote url [%s]: [%s]", remoteUrl, err.Error())
+		logger.Printf("failed to open remote url [%s]: [%s]", remoteURL, err.Error())
 		return nil
 	}
 
@@ -759,11 +759,11 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 			defer imageStream.Close()
 		}
 	} else {
-		imageStream = awsOpenRemoteUrl(imageSource)
+		imageStream = awsOpenRemoteURL(imageSource)
 	}
 
 	if imageStream == nil {
-		return errors.New("Failed to upload image")
+		return errors.New("failed to upload image")
 	}
 
 	logger.Printf("uploading: [%s] => [%s]", imageSource, s3File)
@@ -777,17 +777,19 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 	return aerr
 }
 
+/*
 func awsUploadImages(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
 
 	for _, page := range ocr.ts.Pages {
 		if err := awsUploadImage(uploader, ocr.reqID, page.imageSource, page.remoteName); err != nil {
-			return errors.New(fmt.Sprintf("Failed to upload image: [%s]", err.Error()))
+			return fmt.Errorf("failed to upload image: [%s]", err.Error())
 		}
 	}
 
 	return nil
 }
+*/
 
 func awsUploadImagesConcurrently(ocr ocrInfo) error {
 	uploader := s3manager.NewUploader(sess)
@@ -811,7 +813,7 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 
 	uploadFailed := false
 
-	for i, _ := range ocr.ts.Pages {
+	for i := range ocr.ts.Pages {
 		page := &ocr.ts.Pages[i]
 		wp.Submit(func() {
 			if err := awsUploadImage(uploader, ocr.reqID, page.imageSource, page.remoteName); err != nil {
@@ -827,7 +829,7 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 
 	if uploadFailed == true {
 		logger.Printf("one or more images failed to upload")
-		return errors.New("One or more images failed to upload")
+		return errors.New("one or more images failed to upload")
 	}
 
 	elapsed := time.Since(start).Seconds()
@@ -839,11 +841,11 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 
 func awsGenerateOcr(ocr ocrInfo) error {
 	if config.awsDisabled.value == true {
-		return errors.New(fmt.Sprintf("Automatically failed: [AWS is disabled]"))
+		return fmt.Errorf("automatically failed: [AWS is disabled]")
 	}
 
 	// create {local tif or iiif url} to {s3 key} mapping
-	for i, _ := range ocr.ts.Pages {
+	for i := range ocr.ts.Pages {
 		page := &ocr.ts.Pages[i]
 
 		localFile := getLocalFilename(page.Filename)
@@ -860,7 +862,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 	}
 
 	if err := awsUploadImagesConcurrently(ocr); err != nil {
-		return errors.New(fmt.Sprintf("Upload failed: [%s]", err.Error()))
+		return fmt.Errorf("upload failed: [%s]", err.Error())
 	}
 
 	req := workflowRequest{}
@@ -877,7 +879,7 @@ func awsGenerateOcr(ocr ocrInfo) error {
 
 	if err := awsSubmitWorkflow(req); err != nil {
 		awsDeleteImages(ocr.reqID)
-		return errors.New(fmt.Sprintf("Workflow failed: [%s]", err.Error()))
+		return fmt.Errorf("workflow failed: [%s]", err.Error())
 	}
 
 	return nil

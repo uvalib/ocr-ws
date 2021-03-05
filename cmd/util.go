@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -32,18 +31,18 @@ type ocrResultsInfo struct {
 }
 
 type serviceVersion struct {
-	Version      string `json:"version,omitempty"`
-	Build        string `json:"build,omitempty"`
-	GoVersion    string `json:"go_version,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Build     string `json:"build,omitempty"`
+	GoVersion string `json:"go_version,omitempty"`
 }
 
 type healthcheckDetails struct {
-	Domain      healthCheckStatus `json:"ocr_service,omitempty"`
+	Domain healthCheckStatus `json:"ocr_service,omitempty"`
 }
 
 type healthCheckStatus struct {
-	Healthy      bool `json:"healthy,omitempty"`
-	Message      string `json:"message,omitempty"`
+	Healthy bool   `json:"healthy,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // globals
@@ -61,9 +60,9 @@ func initVersion() {
 	}
 
 	versionDetails = &serviceVersion{
-		Version:      version,
-		Build:        buildVersion,
-		GoVersion:    fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
+		Version:   version,
+		Build:     buildVersion,
+		GoVersion: fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
 	}
 }
 
@@ -97,7 +96,7 @@ func getS3Filename(reqID, remoteFile string) string {
 }
 
 func getIIIFUrl(pid string) string {
-	url := strings.Replace(config.iiifUrlTemplate.value, "{PID}", pid, -1)
+	url := strings.Replace(config.iiifURLTemplate.value, "{PID}", pid, -1)
 	return url
 }
 
@@ -106,7 +105,7 @@ func writeFileWithContents(filename, contents string) error {
 
 	if err != nil {
 		logger.Printf("Unable to open file: %s", err.Error())
-		return errors.New(fmt.Sprintf("Unable to open ocr file: [%s]", filename))
+		return fmt.Errorf("unable to open ocr file: [%s]", filename)
 	}
 
 	defer f.Close()
@@ -115,7 +114,7 @@ func writeFileWithContents(filename, contents string) error {
 
 	if _, err = fmt.Fprintf(w, "%s", contents); err != nil {
 		logger.Printf("Unable to write file: %s", err.Error())
-		return errors.New(fmt.Sprintf("Unable to write ocr file: [%s]", filename))
+		return fmt.Errorf("unable to write ocr file: [%s]", filename)
 	}
 
 	w.Flush()
@@ -246,7 +245,7 @@ func countsToString(m map[string]int) string {
 	return b.String()
 }
 
-func randomId() string {
+func randomID() string {
 	return fmt.Sprintf("%0x", randpool.Uint64())
 }
 

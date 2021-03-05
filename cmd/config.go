@@ -24,30 +24,26 @@ type configBoolItem struct {
 }
 
 type configData struct {
-	listenPort                configStringItem
-	storageDir                configStringItem
-	archiveDir                configStringItem
-	lambdaAttempts            configStringItem
-	concurrentUploads         configStringItem
-	iiifUrlTemplate           configStringItem
-	tsApiHost                 configStringItem
-	tsApiGetPidTemplate       configStringItem
-	tsApiGetManifestTemplate  configStringItem
-	tsApiGetFullTextTemplate  configStringItem
-	tsApiPostFullTextTemplate configStringItem
-	awsDisabled               configBoolItem
-	awsAccessKeyId            configStringItem
-	awsSecretAccessKey        configStringItem
-	awsRegion                 configStringItem
-	awsSwfDomain              configStringItem
-	awsSwfTaskList            configStringItem
-	awsSwfWorkflowType        configStringItem
-	awsSwfWorkflowVersion     configStringItem
-	awsSwfWorkflowTimeout     configStringItem
-	awsSwfDecisionTimeout     configStringItem
-	awsLambdaFunction         configStringItem
-	awsLambdaTimeout          configStringItem
-	awsBucketName             configStringItem
+	listenPort            configStringItem
+	storageDir            configStringItem
+	archiveDir            configStringItem
+	lambdaAttempts        configStringItem
+	concurrentUploads     configStringItem
+	iiifURLTemplate       configStringItem
+	tsAPIHost             configStringItem
+	awsDisabled           configBoolItem
+	awsAccessKeyID        configStringItem
+	awsSecretAccessKey    configStringItem
+	awsRegion             configStringItem
+	awsSwfDomain          configStringItem
+	awsSwfTaskList        configStringItem
+	awsSwfWorkflowType    configStringItem
+	awsSwfWorkflowVersion configStringItem
+	awsSwfWorkflowTimeout configStringItem
+	awsSwfDecisionTimeout configStringItem
+	awsLambdaFunction     configStringItem
+	awsLambdaTimeout      configStringItem
+	awsBucketName         configStringItem
 }
 
 var config configData
@@ -58,14 +54,10 @@ func init() {
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
-	config.iiifUrlTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
-	config.tsApiHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
-	config.tsApiGetPidTemplate = configStringItem{value: "", configItem: configItem{flag: "p", env: "OCRWS_TRACKSYS_API_GET_PID_TEMPLATE", desc: "tracksys api get pid template"}}
-	config.tsApiGetManifestTemplate = configStringItem{value: "", configItem: configItem{flag: "m", env: "OCRWS_TRACKSYS_API_GET_MANIFEST_TEMPLATE", desc: "tracksys api get manifest template"}}
-	config.tsApiGetFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "f", env: "OCRWS_TRACKSYS_API_GET_FULLTEXT_TEMPLATE", desc: "tracksys api get fulltext template"}}
-	config.tsApiPostFullTextTemplate = configStringItem{value: "", configItem: configItem{flag: "u", env: "OCRWS_TRACKSYS_API_POST_FULLTEXT_TEMPLATE", desc: "tracksys api post fulltext template"}}
+	config.iiifURLTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
+	config.tsAPIHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.awsDisabled = configBoolItem{value: false, configItem: configItem{flag: "L", env: "AWS_DISABLED", desc: "aws disabled flag"}}
-	config.awsAccessKeyId = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
+	config.awsAccessKeyID = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
 	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
 	config.awsRegion = configStringItem{value: "", configItem: configItem{flag: "R", env: "AWS_REGION", desc: "aws swf domain"}}
 	config.awsSwfDomain = configStringItem{value: "", configItem: configItem{flag: "D", env: "AWS_SWF_DOMAIN", desc: "aws region"}}
@@ -119,14 +111,10 @@ func getConfigValues() {
 	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.lambdaAttempts)
 	flagStringVar(&config.concurrentUploads)
-	flagStringVar(&config.iiifUrlTemplate)
-	flagStringVar(&config.tsApiHost)
-	flagStringVar(&config.tsApiGetPidTemplate)
-	flagStringVar(&config.tsApiGetManifestTemplate)
-	flagStringVar(&config.tsApiGetFullTextTemplate)
-	flagStringVar(&config.tsApiPostFullTextTemplate)
+	flagStringVar(&config.iiifURLTemplate)
+	flagStringVar(&config.tsAPIHost)
 	flagBoolVar(&config.awsDisabled)
-	flagStringVar(&config.awsAccessKeyId)
+	flagStringVar(&config.awsAccessKeyID)
 	flagStringVar(&config.awsSecretAccessKey)
 	flagStringVar(&config.awsRegion)
 	flagStringVar(&config.awsSwfDomain)
@@ -149,15 +137,11 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
-	configOK = ensureConfigStringSet(&config.iiifUrlTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsApiHost) && configOK
-	configOK = ensureConfigStringSet(&config.tsApiGetPidTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsApiGetManifestTemplate) && configOK
-	configOK = ensureConfigStringSet(&config.tsApiGetFullTextTemplate) && configOK
-	//configOK = ensureConfigStringSet(&config.tsApiPostFullTextTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.iiifURLTemplate) && configOK
+	configOK = ensureConfigStringSet(&config.tsAPIHost) && configOK
 
 	if config.awsDisabled.value == false {
-		configOK = ensureConfigStringSet(&config.awsAccessKeyId) && configOK
+		configOK = ensureConfigStringSet(&config.awsAccessKeyID) && configOK
 		configOK = ensureConfigStringSet(&config.awsSecretAccessKey) && configOK
 		configOK = ensureConfigStringSet(&config.awsRegion) && configOK
 		configOK = ensureConfigStringSet(&config.awsSwfDomain) && configOK
@@ -176,28 +160,24 @@ func getConfigValues() {
 		os.Exit(1)
 	}
 
-	logger.Printf("[CONFIG] listenPort                = [%s]", config.listenPort.value)
-	logger.Printf("[CONFIG] storageDir                = [%s]", config.storageDir.value)
-	logger.Printf("[CONFIG] archiveDir                = [%s]", config.archiveDir.value)
-	logger.Printf("[CONFIG] lambdaAttempts            = [%s]", config.lambdaAttempts.value)
-	logger.Printf("[CONFIG] concurrentUploads         = [%s]", config.concurrentUploads.value)
-	logger.Printf("[CONFIG] iiifUrlTemplate           = [%s]", config.iiifUrlTemplate.value)
-	logger.Printf("[CONFIG] tsApiHost                 = [%s]", config.tsApiHost.value)
-	logger.Printf("[CONFIG] tsApiGetPidTemplate       = [%s]", config.tsApiGetPidTemplate.value)
-	logger.Printf("[CONFIG] tsApiGetManifestTemplate  = [%s]", config.tsApiGetManifestTemplate.value)
-	logger.Printf("[CONFIG] tsApiGetFullTextTemplate  = [%s]", config.tsApiGetFullTextTemplate.value)
-	logger.Printf("[CONFIG] tsApiPostFullTextTemplate = [%s]", config.tsApiPostFullTextTemplate.value)
-	logger.Printf("[CONFIG] awsDisabled               = [%s]", strconv.FormatBool(config.awsDisabled.value))
-	logger.Printf("[CONFIG] awsAccessKeyId            = [%s]", maskValue(config.awsAccessKeyId.value))
-	logger.Printf("[CONFIG] awsSecretAccessKey        = [%s]", maskValue(config.awsSecretAccessKey.value))
-	logger.Printf("[CONFIG] awsRegion                 = [%s]", config.awsRegion.value)
-	logger.Printf("[CONFIG] awsSwfDomain              = [%s]", config.awsSwfDomain.value)
-	logger.Printf("[CONFIG] awsSwfTaskList            = [%s]", config.awsSwfTaskList.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowType        = [%s]", config.awsSwfWorkflowType.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowVersion     = [%s]", config.awsSwfWorkflowVersion.value)
-	logger.Printf("[CONFIG] awsSwfWorkflowTimeout     = [%s]", config.awsSwfWorkflowTimeout.value)
-	logger.Printf("[CONFIG] awsSwfDecisionTimeout     = [%s]", config.awsSwfDecisionTimeout.value)
-	logger.Printf("[CONFIG] awsLambdaFunction         = [%s]", config.awsLambdaFunction.value)
-	logger.Printf("[CONFIG] awsLambdaTimeout          = [%s]", config.awsLambdaTimeout.value)
-	logger.Printf("[CONFIG] awsBucketName             = [%s]", config.awsBucketName.value)
+	logger.Printf("[CONFIG] listenPort            = [%s]", config.listenPort.value)
+	logger.Printf("[CONFIG] storageDir            = [%s]", config.storageDir.value)
+	logger.Printf("[CONFIG] archiveDir            = [%s]", config.archiveDir.value)
+	logger.Printf("[CONFIG] lambdaAttempts        = [%s]", config.lambdaAttempts.value)
+	logger.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
+	logger.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
+	logger.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
+	logger.Printf("[CONFIG] awsDisabled           = [%s]", strconv.FormatBool(config.awsDisabled.value))
+	logger.Printf("[CONFIG] awsAccessKeyID        = [%s]", maskValue(config.awsAccessKeyID.value))
+	logger.Printf("[CONFIG] awsSecretAccessKey    = [%s]", maskValue(config.awsSecretAccessKey.value))
+	logger.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)
+	logger.Printf("[CONFIG] awsSwfDomain          = [%s]", config.awsSwfDomain.value)
+	logger.Printf("[CONFIG] awsSwfTaskList        = [%s]", config.awsSwfTaskList.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowType    = [%s]", config.awsSwfWorkflowType.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowVersion = [%s]", config.awsSwfWorkflowVersion.value)
+	logger.Printf("[CONFIG] awsSwfWorkflowTimeout = [%s]", config.awsSwfWorkflowTimeout.value)
+	logger.Printf("[CONFIG] awsSwfDecisionTimeout = [%s]", config.awsSwfDecisionTimeout.value)
+	logger.Printf("[CONFIG] awsLambdaFunction     = [%s]", config.awsLambdaFunction.value)
+	logger.Printf("[CONFIG] awsLambdaTimeout      = [%s]", config.awsLambdaTimeout.value)
+	logger.Printf("[CONFIG] awsBucketName         = [%s]", config.awsBucketName.value)
 }

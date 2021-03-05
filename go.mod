@@ -3,7 +3,7 @@ module github.com/uvalib/ocr-ws
 go 1.14
 
 require (
-	github.com/aws/aws-sdk-go v1.36.31
+	github.com/aws/aws-sdk-go v1.37.25
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gammazero/deque v0.0.0-20201010052221-3932da5530cc // indirect
 	github.com/gammazero/workerpool v1.1.1

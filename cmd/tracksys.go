@@ -13,7 +13,7 @@ import (
 
 // the line between metadata/masterfile fields is getting blurry; just lump them together
 type tsGenericPidInfo struct {
-	Id              int    `json:"id,omitempty"`
+	ID              int    `json:"id,omitempty"`
 	Pid             string `json:"pid,omitempty"`
 	Type            string `json:"type,omitempty"`
 	Title           string `json:"title,omitempty"`
@@ -33,32 +33,27 @@ type tsPidInfo struct {
 	isOcrable bool
 }
 
-func tsApiUrlForPidUnit(api, pid, unit string) string {
-	url := fmt.Sprintf("%s%s", config.tsApiHost.value, api)
-	url = strings.Replace(url, "{PID}", pid, -1)
-
+func getTsURL(api string, pid string, unit string) string {
+	url := fmt.Sprintf("%s%s/%s", config.tsAPIHost.value, api, pid)
 	if unit != "" {
 		url = fmt.Sprintf("%s?unit=%s", url, unit)
 	}
-
-	//logger.Printf("url: [%s]", url)
-
 	return url
 }
 
 func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
-	url := tsApiUrlForPidUnit(config.tsApiGetManifestTemplate.value, pid, unit)
+	url := getTsURL("/api/manifest", pid, unit)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
-		return nil, errors.New("Failed to create new manifest request")
+		return nil, errors.New("failed to create new manifest request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
-		return nil, errors.New("Failed to receive manifest response")
+		return nil, errors.New("failed to receive manifest response")
 	}
 
 	defer res.Body.Close()
@@ -70,7 +65,7 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 	buf, _ := ioutil.ReadAll(res.Body)
 	if jErr := json.Unmarshal(buf, &tsPages); jErr != nil {
 		logger.Printf("Unmarshal() failed: %s", jErr.Error())
-		return nil, errors.New(fmt.Sprintf("Failed to unmarshal manifest response: [%s]", buf))
+		return nil, fmt.Errorf("failed to unmarshal manifest response: [%s]", buf)
 	}
 
 	for i, p := range tsPages {
@@ -81,18 +76,18 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 }
 
 func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
-	url := tsApiUrlForPidUnit(config.tsApiGetPidTemplate.value, pid, "")
+	url := getTsURL("/api/pid", pid, "")
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
-		return nil, errors.New("Failed to create new pid request")
+		return nil, errors.New("failed to create new pid request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
-		return nil, errors.New("Failed to receive pid response")
+		return nil, errors.New("failed to receive pid response")
 	}
 
 	defer res.Body.Close()
@@ -104,7 +99,7 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 	buf, _ := ioutil.ReadAll(res.Body)
 	if jErr := json.Unmarshal(buf, &ts.Pid); jErr != nil {
 		logger.Printf("Unmarshal() failed: %s", jErr.Error())
-		return nil, errors.New(fmt.Sprintf("Failed to unmarshal pid response: [%s]", buf))
+		return nil, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
 	}
 
 	logger.Printf("Type            : [%s]", ts.Pid.Type)
@@ -132,7 +127,7 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 		return &ts, nil
 	}
 
-	return nil, errors.New(fmt.Sprintf("Unhandled PID type: [%s]", ts.Pid.Type))
+	return nil, fmt.Errorf("unhandled PID type: [%s]", ts.Pid.Type)
 }
 
 func tsGetMetadataPidInfo(pid, unit string) (*tsPidInfo, error) {
@@ -143,12 +138,12 @@ func tsGetMetadataPidInfo(pid, unit string) (*tsPidInfo, error) {
 	}
 
 	if strings.Contains(ts.Pid.Type, "metadata") == false {
-		return nil, errors.New(fmt.Sprintf("PID is not a metadata type: [%s]", ts.Pid.Type))
+		return nil, fmt.Errorf("pid is not a metadata type: [%s]", ts.Pid.Type)
 	}
 
 	// ensure there are pages to process
 	if len(ts.Pages) == 0 {
-		return nil, errors.New("Metadata PID does not have any pages")
+		return nil, errors.New("metadata pid does not have any pages")
 	}
 
 	// check if this is ocr-able: FIXME (DCMD-634)
@@ -168,18 +163,18 @@ func tsGetMetadataPidInfo(pid, unit string) (*tsPidInfo, error) {
 }
 
 func tsGetText(pid string) (string, error) {
-	url := tsApiUrlForPidUnit(config.tsApiGetFullTextTemplate.value, pid, "")
+	url := getTsURL("/api/fulltext", pid, "") + "?type=transcription"
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
-		return "", errors.New("Failed to create new fulltext request")
+		return "", errors.New("failed to create new fulltext request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
-		return "", errors.New("Failed to receive fulltext response")
+		return "", errors.New("failed to receive fulltext response")
 	}
 
 	defer res.Body.Close()
@@ -189,7 +184,7 @@ func tsGetText(pid string) (string, error) {
 	text, textErr := ioutil.ReadAll(res.Body)
 	if textErr != nil {
 		logger.Printf("ReadAll() failed: %s", textErr.Error())
-		return "", errors.New("Failed to read fulltext response")
+		return "", errors.New("failed to read fulltext response")
 	}
 
 	return string(text), nil
@@ -215,27 +210,27 @@ func textSnippet(text string) string {
 func tsPostText(pid, text string) error {
 	// if url not set, just skip over this
 
-	if config.tsApiPostFullTextTemplate.value == "" {
-		//logger.Printf("SKIPPING TRACKSYS POST")
-		return nil
-	}
+	//	if config.tsAPIPostFullTextTemplate.value == "" {
+	//logger.Printf("SKIPPING TRACKSYS POST")
+	//		return nil
+	//	}
 
 	form := url.Values{
 		"text": {text},
 	}
 
-	url := tsApiUrlForPidUnit(config.tsApiPostFullTextTemplate.value, pid, "")
+	url := getTsURL("/api/fulltext", pid, "") + "/ocr"
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
-		return errors.New("Failed to create new fulltext post request")
+		return errors.New("failed to create new fulltext post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
-		return errors.New("Failed to receive fulltext post response")
+		return errors.New("failed to receive fulltext post response")
 	}
 
 	defer res.Body.Close()
@@ -262,25 +257,25 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 	output, jsonErr := json.Marshal(jobstatus)
 	if jsonErr != nil {
 		logger.Printf("Failed to serialize callback json: [%s]", jsonErr.Error())
-		return errors.New("Failed to serialze job status callback json")
+		return errors.New("failed to serialze job status callback json")
 	}
 
 	form := url.Values{
 		"json": {string(output)},
 	}
 
-	url := tsApiUrlForPidUnit(api, "", "")
+	url := getTsURL(api, "", "")
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
 		logger.Printf("NewRequest() failed: %s", reqErr.Error())
-		return errors.New("Failed to create new job status post request")
+		return errors.New("failed to create new job status post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		logger.Printf("client.Do() failed: %s", resErr.Error())
-		return errors.New("Failed to receive job status post response")
+		return errors.New("failed to receive job status post response")
 	}
 
 	defer res.Body.Close()
