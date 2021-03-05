@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/julienschmidt/httprouter"
-	"github.com/rs/cors"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 const version = "0.9.0"
@@ -39,51 +39,60 @@ func main() {
 	}
 
 	// Set routes and start server
-	mux := httprouter.New()
-	mux.GET("/", rootHandler)
-	mux.GET("/version", versionHandler)
-	mux.GET("/healthcheck", healthCheckHandler)
+	gin.SetMode(gin.ReleaseMode)
+	gin.DisableConsoleColor()
 
-	mux.GET("/ocr/:pid", ocrGenerateHandler)
-	mux.GET("/ocr/:pid/status", ocrStatusHandler)
-	mux.GET("/ocr/:pid/text", ocrTextHandler)
-	log.Printf("Start service on port %s", config.listenPort.value)
+	router := gin.Default()
 
-	log.Fatal(http.ListenAndServe(":"+config.listenPort.value, cors.Default().Handler(mux)))
+	corsCfg := cors.DefaultConfig()
+	corsCfg.AllowAllOrigins = true
+	corsCfg.AllowCredentials = true
+	corsCfg.AddAllowHeaders("Authorization")
+	router.Use(cors.New(corsCfg))
+
+	router.GET("/", rootHandler)
+	router.GET("/version", versionHandler)
+	router.GET("/healthcheck", healthCheckHandler)
+
+	router.GET("/ocr/:pid", ocrGenerateHandler)
+	router.GET("/ocr/:pid/status", ocrStatusHandler)
+	router.GET("/ocr/:pid/text", ocrTextHandler)
+
+	portStr := fmt.Sprintf(":%s", config.listenPort.value)
+	log.Printf("Start service on %s", portStr)
+
+	log.Fatal(router.Run(portStr))
 }
 
 // Handle a request for /
-func rootHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	log.Printf("%s %s", r.Method, r.RequestURI)
-	fmt.Fprintf(w, "OCR service version %s", version)
+func rootHandler(c *gin.Context) {
+	c.String(http.StatusOK, fmt.Sprintf("OCR service version %s", version))
 }
 
 // Handle a request for /version
-func versionHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-
+func versionHandler(c *gin.Context) {
 	output, jsonErr := json.Marshal(versionDetails)
 	if jsonErr != nil {
 		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, "")
 		return
 	}
 
-	fmt.Print(w, string(output))
+	c.String(http.StatusOK, string(output))
 }
 
 // Handle a request for /healthcheck
-func healthCheckHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-
+func healthCheckHandler(c *gin.Context) {
 	health := healthcheckDetails{healthCheckStatus{Healthy: true, Message: "Not implemented"}}
 
 	output, jsonErr := json.Marshal(health)
 	if jsonErr != nil {
 		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, "")
 		return
 	}
 
-	fmt.Print(w, string(output))
+	c.String(http.StatusOK, string(output))
 }
 
 //

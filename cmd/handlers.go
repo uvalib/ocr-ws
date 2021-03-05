@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 type ocrRequest struct {
@@ -32,18 +32,16 @@ type ocrInfo struct {
 /**
  * Handle a request for OCR of page images
  */
-func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	log.Printf("%s %s", r.Method, r.RequestURI)
-
+func ocrGenerateHandler(c *gin.Context) {
 	ocr := ocrInfo{}
 
 	// save fields from original request
-	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = r.URL.Query().Get("unit")
-	ocr.req.email = r.URL.Query().Get("email")
-	ocr.req.callback = r.URL.Query().Get("callback")
-	ocr.req.force = r.URL.Query().Get("force")
-	ocr.req.lang = r.URL.Query().Get("lang")
+	ocr.req.pid = c.Param("pid")
+	ocr.req.unit = c.Query("unit")
+	ocr.req.email = c.Query("email")
+	ocr.req.callback = c.Query("callback")
+	ocr.req.force = c.Query("force")
+	ocr.req.lang = c.Query("lang")
 
 	// save info generated from the original request
 	ocr.subDir = ocr.req.pid
@@ -56,14 +54,13 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 		if tsErr != nil {
 			log.Printf("Tracksys API error: [%s]", tsErr.Error())
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
+			c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 			return
 		}
 
 		ocr.ts = ts
 
-		fmt.Print(w, "OK")
+		c.String(http.StatusOK, "OK")
 
 		go generateOcr(ocr)
 
@@ -78,7 +75,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 		log.Printf("Request already in progress; adding email/callback to completion notification list")
 		reqAddEmail(ocr.workDir, ocr.req.email)
 		reqAddCallback(ocr.workDir, ocr.req.callback)
-		fmt.Print(w, "OK")
+		c.String(http.StatusOK, "OK")
 		return
 	}
 
@@ -86,8 +83,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	if tsErr != nil {
 		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
+		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
@@ -114,10 +110,9 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 				txt, txtErr := tsGetText(p.Pid)
 				if txtErr != nil {
 					log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
-					w.WriteHeader(http.StatusInternalServerError)
-					fmt.Print(w, "ERROR: Could not retrieve page text")
 					res.details = "Error encountered while retrieving text for one or more pages"
 					processOcrFailure(res)
+					c.String(http.StatusInternalServerError, "ERROR: Could not retrieve page text")
 					return
 				}
 
@@ -126,7 +121,7 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 			processOcrSuccess(res)
 
-			fmt.Print(w, "OK")
+			c.String(http.StatusOK, "OK")
 			return
 		}
 	*/
@@ -135,14 +130,13 @@ func ocrGenerateHandler(w http.ResponseWriter, r *http.Request, params httproute
 
 	if ocr.ts.isOcrable == false {
 		log.Printf("Cannot OCR: [%s]", ocr.ts.Pid.OcrHint)
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Print(w, "ERROR: PID is not in a format conducive to OCR")
+		c.String(http.StatusBadRequest, "ERROR: PID is not in a format conducive to OCR")
 		return
 	}
 
 	// perform ocr
 
-	fmt.Print(w, "OK")
+	c.String(http.StatusOK, "OK")
 
 	go generateOcr(ocr)
 }
@@ -166,50 +160,43 @@ func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
 	return ocrText.String(), nil
 }
 
-func ocrTextHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	log.Printf("%s %s", r.Method, r.RequestURI)
-
+func ocrTextHandler(c *gin.Context) {
 	ocr := ocrInfo{}
 
 	// save fields from original request
-	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = r.URL.Query().Get("unit")
+	ocr.req.pid = c.Param("pid")
+	ocr.req.unit = c.Query("unit")
 
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
 		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
+		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
 	ocrText, txtErr := getTextForMetadataPid(ts)
 
 	if txtErr != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "ERROR: %s", txtErr.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR: %s", txtErr.Error()))
 		return
 	}
 
-	fmt.Fprintf(w, "%s", ocrText)
+	c.String(http.StatusOK, ocrText)
 }
 
-func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
-	log.Printf("%s %s", r.Method, r.RequestURI)
-
+func ocrStatusHandler(c *gin.Context) {
 	ocr := ocrInfo{}
 
 	// save fields from original request
-	ocr.req.pid = params.ByName("pid")
-	ocr.req.unit = r.URL.Query().Get("unit")
+	ocr.req.pid = c.Param("pid")
+	ocr.req.unit = c.Query("unit")
 
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
 		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "ERROR: Could not retrieve PID info: [%s]", tsErr.Error())
+		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
@@ -235,12 +222,11 @@ func ocrStatusHandler(w http.ResponseWriter, r *http.Request, params httprouter.
 	output, jsonErr := json.Marshal(status)
 	if jsonErr != nil {
 		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "ERROR: Could not serialize PID status: [%s]", jsonErr.Error())
+		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR: Could not serialize PID status: [%s]", jsonErr.Error()))
 		return
 	}
 
-	fmt.Print(w, string(output))
+	c.String(http.StatusOK, string(output))
 }
 
 func generateOcr(ocr ocrInfo) {
