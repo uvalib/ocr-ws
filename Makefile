@@ -92,7 +92,7 @@ rebuild-linux: target-linux rebuild
 
 # docker: make sure binary is linux and truly static
 docker-vars:
-	$(eval GOENV_EXTRA += CGO_ENABLED=0)
+#	$(eval GOENV_EXTRA += CGO_ENABLED=0)
 	$(eval GOLINK_EXTRA += -extldflags "-static")
 
 docker: docker-vars linux
