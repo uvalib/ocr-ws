@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -192,6 +191,10 @@ func ocrStatusHandler(c *gin.Context) {
 	ocr.req.pid = c.Param("pid")
 	ocr.req.unit = c.Query("unit")
 
+	// save info generated from the original request
+	ocr.subDir = ocr.req.pid
+	ocr.workDir = getWorkDir(ocr.subDir)
+
 	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
 
 	if tsErr != nil {
@@ -209,24 +212,17 @@ func ocrStatusHandler(c *gin.Context) {
 		hasTranscription = true
 	}
 
-	status := struct {
-		HasOcr           bool `json:"has_ocr"`
-		HasTranscription bool `json:"has_transcription"`
-		IsOcrCandidate   bool `json:"is_ocr_candidate"`
-	}{
-		HasOcr:           hasOcr,
-		HasTranscription: hasTranscription,
-		IsOcrCandidate:   ts.isOcrable,
+	status := make(map[string]interface{})
+
+	status["has_ocr"] = hasOcr
+	status["has_transcription"] = hasTranscription
+	status["is_ocr_candidate"] = ts.isOcrable
+
+	if reqInProgress(ocr.workDir) == true {
+		status["ocr_progress"] = "50%"
 	}
 
-	output, jsonErr := json.Marshal(status)
-	if jsonErr != nil {
-		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
-		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR: Could not serialize PID status: [%s]", jsonErr.Error()))
-		return
-	}
-
-	c.String(http.StatusOK, string(output))
+	c.JSON(http.StatusOK, status)
 }
 
 func generateOcr(ocr ocrInfo) {
