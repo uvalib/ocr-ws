@@ -742,13 +742,27 @@ func awsOpenLocalFile(localFile string) io.ReadCloser {
 }
 
 func awsOpenRemoteURL(remoteURL string) io.ReadCloser {
-	h, err := http.Get(remoteURL)
-	if err != nil {
-		log.Printf("failed to open remote url [%s]: [%s]", remoteURL, err.Error())
-		return nil
+	maxTries := 5
+
+	for i := 1; i <= maxTries; i++ {
+		h, err := http.Get(remoteURL)
+
+		if err == nil && h.StatusCode == 200 {
+			return h.Body
+		}
+
+		if err != nil {
+			log.Printf("[try %d/%d] open [%s] failed: %s", i, maxTries, remoteURL, err.Error())
+		} else {
+			log.Printf("[try %d/%d] open [%s] failed: received http status %d", i, maxTries, remoteURL, h.StatusCode)
+		}
+
+		time.Sleep(5 * time.Second)
 	}
 
-	return h.Body
+	log.Printf("gave up opening: [%s]", remoteURL)
+
+	return nil
 }
 
 func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName string) error {
@@ -758,9 +772,6 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 
 	if strings.HasPrefix(imageSource, "/") {
 		imageStream = awsOpenLocalFile(imageSource)
-		if imageStream != nil {
-			defer imageStream.Close()
-		}
 	} else {
 		imageStream = awsOpenRemoteURL(imageSource)
 	}
@@ -768,6 +779,8 @@ func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName
 	if imageStream == nil {
 		return errors.New("failed to upload image")
 	}
+
+	defer imageStream.Close()
 
 	log.Printf("uploading: [%s] => [%s]", imageSource, s3File)
 
