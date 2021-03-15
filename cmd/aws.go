@@ -243,6 +243,8 @@ func awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 		info.recentEvents = append(info.recentEvents, e)
 	}
 
+	reqUpdateImagesComplete(getWorkDir(info.req.Path), info.req.ReqID, len(info.ocrResults))
+
 	if workflowHalted {
 		log.Printf("[%s] WORKFLOW WAS PREVIOUSLY HALTED", info.workflowID)
 	}

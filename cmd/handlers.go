@@ -69,7 +69,8 @@ func ocrGenerateHandler(c *gin.Context) {
 	// normal request:
 
 	// see if request is already in progress
-	if reqInProgress(ocr.workDir) == true {
+	inProgress, _ := reqInProgress(ocr.workDir)
+	if inProgress == true {
 		// request is in progress; don't start another request, just add email/callback to completion notification list
 		log.Printf("Request already in progress; adding email/callback to completion notification list")
 		reqAddEmail(ocr.workDir, ocr.req.email)
@@ -218,8 +219,9 @@ func ocrStatusHandler(c *gin.Context) {
 	status["has_transcription"] = hasTranscription
 	status["is_ocr_candidate"] = ts.isOcrable
 
-	if reqInProgress(ocr.workDir) == true {
-		status["ocr_progress"] = "50%"
+	inProgress, pct := reqInProgress(ocr.workDir)
+	if inProgress == true {
+		status["ocr_progress"] = pct
 	}
 
 	c.JSON(http.StatusOK, status)
@@ -233,6 +235,7 @@ func generateOcr(ocr ocrInfo) {
 
 	reqInitialize(ocr.workDir, ocr.reqID)
 	reqUpdateStarted(ocr.workDir, ocr.reqID)
+	reqUpdateImagesTotal(ocr.workDir, ocr.reqID, len(ocr.ts.Pages))
 	reqAddEmail(ocr.workDir, ocr.req.email)
 	reqAddCallback(ocr.workDir, ocr.req.callback)
 

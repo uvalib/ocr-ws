@@ -27,7 +27,7 @@ func emailResults(to, subject, body, attachment string) {
 
 	m := gomail.NewMessage()
 
-	m.SetHeader("From", "UVA Library OCR-On-Demand <ocr-ws@lib.virginia.edu>")
+	m.SetHeader("From", "UVA Library OCR-On-Demand <ocr-service@lib.virginia.edu>")
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)

@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type reqInfo struct {
-	ReqID         string
-	Started       string
-	Finished      string
-	AWSWorkflowID string
-	AWSRunID      string
+	ReqID          string
+	Started        string
+	Finished       string
+	AWSWorkflowID  string
+	AWSRunID       string
+	ImagesTotal    string
+	ImagesComplete string
 }
 
 func reqFileName(path string) string {
@@ -66,40 +69,51 @@ func reqInProgressByDates(req *reqInfo) bool {
 	return true
 }
 
-func reqInProgress(path string) bool {
+func reqInProgress(path string) (bool, string) {
 	log.Printf("checking for existing request in progress")
+
+	zeroPct := "0%"
 
 	req, err := reqGetRequestInfo(path, "")
 	if err != nil {
 		log.Printf("error getting request info; not in progress (%s)", err.Error())
-		return false
+		return false, zeroPct
 	}
 
 	if req.AWSWorkflowID == "" || req.AWSRunID == "" {
 		log.Printf("no valid request info found; checking timestamps")
 
-		return reqInProgressByDates(req)
+		return reqInProgressByDates(req), zeroPct
 	}
 
 	log.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
+
+	total, _ := strconv.Atoi(req.ImagesTotal)
+	complete, _ := strconv.Atoi(req.ImagesComplete)
+
+	pct := zeroPct
+	if total > 0 {
+		pct = fmt.Sprintf("%d%%", (100*complete)/total)
+		log.Printf("progress: %s / %s => %s", req.ImagesComplete, req.ImagesTotal, pct)
+	}
 
 	// check if this is an open workflow
 	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowID, req.AWSRunID)
 	if openErr == nil && open == true {
 		log.Printf("workflow execution is open; in progress")
-		return true
+		return true, pct
 	}
 
 	// check if this is a closed workflow
 	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowID, req.AWSRunID)
 	if closedErr == nil && closed == true {
 		log.Printf("workflow execution is closed; not in progress")
-		return false
+		return false, zeroPct
 	}
 
 	log.Printf("workflow execution is indeterminate; checking timestamps")
 
-	return reqInProgressByDates(req)
+	return reqInProgressByDates(req), pct
 }
 
 func reqInitialize(path, reqid string) error {
@@ -116,7 +130,7 @@ func reqInitialize(path, reqid string) error {
 
 	// attempt to create tables, even if they exist
 
-	query := `create table if not exists request_info (id integer not null primary key, req_id text unique, started text, finished text, aws_workflow_id text, aws_run_id text);`
+	query := `create table if not exists request_info (id integer not null primary key, req_id text unique, started text, finished text, aws_workflow_id text, aws_run_id text, images_total text, images_complete text);`
 	_, err = db.Exec(query)
 	if err != nil {
 		log.Printf("[req] failed to create request_info table: [%s]", err.Error())
@@ -137,7 +151,7 @@ func reqInitialize(path, reqid string) error {
 		log.Printf("[req] failed to create request transaction: [%s]", txErr.Error())
 		return errors.New("failed to create request transaction")
 	}
-	stmt, err := tx.Prepare("insert into request_info (req_id, started, finished, aws_workflow_id, aws_run_id) values (?, '', '', '', '');")
+	stmt, err := tx.Prepare("insert into request_info (req_id, started, finished, aws_workflow_id, aws_run_id, images_total, images_complete) values (?, '', '', '', '', '0', '0');")
 	if err != nil {
 		log.Printf("[req] failed to prepare request transaction: [%s]", err.Error())
 		return errors.New("failed to prepare request transaction")
@@ -171,7 +185,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 		clause = fmt.Sprintf(" where req_id = '%s'", reqid)
 	}
 
-	query := fmt.Sprintf("select req_id, started, finished, aws_workflow_id, aws_run_id from request_info%s;", clause)
+	query := fmt.Sprintf("select req_id, started, finished, aws_workflow_id, aws_run_id, images_total, images_complete from request_info%s;", clause)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("[req] failed to retrieve request info: [%s]", err.Error())
@@ -180,7 +194,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&req.ReqID, &req.Started, &req.Finished, &req.AWSWorkflowID, &req.AWSRunID)
+		err = rows.Scan(&req.ReqID, &req.Started, &req.Finished, &req.AWSWorkflowID, &req.AWSRunID, &req.ImagesTotal, &req.ImagesComplete)
 		if err != nil {
 			log.Printf("[req] failed to scan request info: [%s]", err.Error())
 			return nil, errors.New("failed to scan request info")
@@ -233,6 +247,14 @@ func reqUpdateAwsWorkflowID(path, reqid, value string) error {
 
 func reqUpdateAwsRunID(path, reqid, value string) error {
 	return reqUpdateRequestColumn(path, reqid, "aws_run_id", value)
+}
+
+func reqUpdateImagesTotal(path, reqid string, value int) error {
+	return reqUpdateRequestColumn(path, reqid, "images_total", fmt.Sprintf("%d", value))
+}
+
+func reqUpdateImagesComplete(path, reqid string, value int) error {
+	return reqUpdateRequestColumn(path, reqid, "images_complete", fmt.Sprintf("%d", value))
 }
 
 func reqAddRecipientByType(path string, rtype int, rvalue string) error {
