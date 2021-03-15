@@ -32,6 +32,7 @@ type configData struct {
 	concurrentUploads     configStringItem
 	iiifURLTemplate       configStringItem
 	tsAPIHost             configStringItem
+	tsReadOnly            configBoolItem
 	awsDisabled           configBoolItem
 	awsAccessKeyID        configStringItem
 	awsSecretAccessKey    configStringItem
@@ -57,6 +58,7 @@ func init() {
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
 	config.iiifURLTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.tsAPIHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
+	config.tsReadOnly = configBoolItem{value: false, configItem: configItem{flag: "r", env: "OCRWS_TRACKSYS_READ_ONLY", desc: "tracksys read-only flag"}}
 	config.awsDisabled = configBoolItem{value: false, configItem: configItem{flag: "L", env: "AWS_DISABLED", desc: "aws disabled flag"}}
 	config.awsAccessKeyID = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
 	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
@@ -114,6 +116,7 @@ func getConfigValues() {
 	flagStringVar(&config.concurrentUploads)
 	flagStringVar(&config.iiifURLTemplate)
 	flagStringVar(&config.tsAPIHost)
+	flagBoolVar(&config.tsReadOnly)
 	flagBoolVar(&config.awsDisabled)
 	flagStringVar(&config.awsAccessKeyID)
 	flagStringVar(&config.awsSecretAccessKey)
@@ -168,7 +171,8 @@ func getConfigValues() {
 	log.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
 	log.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
 	log.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
-	log.Printf("[CONFIG] awsDisabled           = [%s]", strconv.FormatBool(config.awsDisabled.value))
+	log.Printf("[CONFIG] tsReadOnly            = [%v]", config.tsReadOnly.value)
+	log.Printf("[CONFIG] awsDisabled           = [%v]", config.awsDisabled.value)
 	log.Printf("[CONFIG] awsAccessKeyID        = [%s]", maskValue(config.awsAccessKeyID.value))
 	log.Printf("[CONFIG] awsSecretAccessKey    = [%s]", maskValue(config.awsSecretAccessKey.value))
 	log.Printf("[CONFIG] awsRegion             = [%s]", config.awsRegion.value)

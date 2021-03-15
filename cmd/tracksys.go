@@ -211,10 +211,10 @@ func textSnippet(text string) string {
 func tsPostText(pid, text string) error {
 	// if url not set, just skip over this
 
-	//	if config.tsAPIPostFullTextTemplate.value == "" {
-	//log.Printf("SKIPPING TRACKSYS POST")
-	//		return nil
-	//	}
+	if config.tsReadOnly.value == true {
+		log.Printf("SKIPPING TRACKSYS POST")
+		return nil
+	}
 
 	form := url.Values{
 		"text": {text},
