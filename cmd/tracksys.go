@@ -69,9 +69,12 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 		return nil, fmt.Errorf("failed to unmarshal manifest response: [%s]", buf)
 	}
 
-	for i, p := range tsPages {
-		log.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(tsPages), p.Pid, p.Filename, p.Title, p.TextSource)
-	}
+	log.Printf("pid %s has %d pages", pid, len(tsPages))
+	/*
+		for i, p := range tsPages {
+			log.Printf("    [page %d / %d]  { [%s]  [%s]  [%s]  [%s] }", i+1, len(tsPages), p.Pid, p.Filename, p.Title, p.TextSource)
+		}
+	*/
 
 	return tsPages, nil
 }
