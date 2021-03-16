@@ -23,8 +23,8 @@ type tsGenericPidInfo struct {
 	OcrHint          string `json:"ocr_hint,omitempty"`
 	OcrCandidate     bool   `json:"ocr_candidate,omitempty"`
 	OcrLanguageHint  string `json:"ocr_language_hint,omitempty"`
-	HasOcr           string `json:"has_ocr,omitempty"`
-	HasTranscription string `json:"has_transcription,omitempty"`
+	HasOcr           bool   `json:"has_ocr,omitempty"`
+	HasTranscription bool   `json:"has_transcription,omitempty"`
 	imageSource      string
 	remoteName       string
 }
