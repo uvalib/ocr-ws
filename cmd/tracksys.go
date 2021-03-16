@@ -14,17 +14,19 @@ import (
 
 // the line between metadata/masterfile fields is getting blurry; just lump them together
 type tsGenericPidInfo struct {
-	ID              int    `json:"id,omitempty"`
-	Pid             string `json:"pid,omitempty"`
-	Type            string `json:"type,omitempty"`
-	Title           string `json:"title,omitempty"`
-	Filename        string `json:"filename,omitempty"`
-	TextSource      string `json:"text_source,omitempty"`
-	OcrHint         string `json:"ocr_hint,omitempty"`
-	OcrCandidate    bool   `json:"ocr_candidate,omitempty"`
-	OcrLanguageHint string `json:"ocr_language_hint,omitempty"`
-	imageSource     string
-	remoteName      string
+	ID               int    `json:"id,omitempty"`
+	Pid              string `json:"pid,omitempty"`
+	Type             string `json:"type,omitempty"`
+	Title            string `json:"title,omitempty"`
+	Filename         string `json:"filename,omitempty"`
+	TextSource       string `json:"text_source,omitempty"`
+	OcrHint          string `json:"ocr_hint,omitempty"`
+	OcrCandidate     bool   `json:"ocr_candidate,omitempty"`
+	OcrLanguageHint  string `json:"ocr_language_hint,omitempty"`
+	HasOcr           string `json:"has_ocr,omitempty"`
+	HasTranscription string `json:"has_transcription,omitempty"`
+	imageSource      string
+	remoteName       string
 }
 
 // holds metadata pid/page info

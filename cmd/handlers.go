@@ -204,19 +204,10 @@ func ocrStatusHandler(c *gin.Context) {
 		return
 	}
 
-	hasOcr, hasTranscription := false, false
-
-	switch ts.Pid.TextSource {
-	case "ocr", "corrected_ocr":
-		hasOcr = true
-	case "transcription":
-		hasTranscription = true
-	}
-
 	status := make(map[string]interface{})
 
-	status["has_ocr"] = hasOcr
-	status["has_transcription"] = hasTranscription
+	status["has_ocr"] = ts.Pid.HasOcr
+	status["has_transcription"] = ts.Pid.HasTranscription
 	status["is_ocr_candidate"] = ts.isOcrable
 
 	inProgress, pct := reqInProgress(ocr.workDir)
