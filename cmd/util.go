@@ -177,11 +177,9 @@ func processOcrSuccess(res ocrResultsInfo) {
 		// save to one file
 		ocrOneFile := fmt.Sprintf("%s/%s.txt", res.workDir, p.pid)
 
-		headerTitle := fmt.Sprintf("Title: %s", p.title)
 		headerPages := fmt.Sprintf("Page %d of %d", i+1, len(res.pages))
-		headerLength := maxOf(len(headerTitle), len(headerPages))
-		headerBorder := strings.Repeat("=", headerLength)
-		headerText := fmt.Sprintf("%s\n%s\n%s\n%s\n", headerBorder, headerTitle, headerPages, headerBorder)
+		headerBorder := strings.Repeat("=", len(headerPages))
+		headerText := fmt.Sprintf("%s\n%s\n%s\n", headerBorder, headerPages, headerBorder)
 
 		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, p.text)
 
