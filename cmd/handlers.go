@@ -154,7 +154,7 @@ func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
 			return "", errors.New("could not retrieve page text")
 		}
 
-		fmt.Fprintf(&ocrText, "[Title: %s]\n[Page: %d of %d]\n\n%s\n\n", p.Title, i+1, len(ts.Pages), pageText)
+		fmt.Fprintf(&ocrText, "[Page: %d of %d]\n\n%s\n\n", i+1, len(ts.Pages), pageText)
 	}
 
 	return ocrText.String(), nil
