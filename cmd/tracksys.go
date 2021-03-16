@@ -193,7 +193,7 @@ func tsGetText(pid string) (string, error) {
 		return "", errors.New("failed to read fulltext response")
 	}
 
-	return string(text), nil
+	return cleanOcrText(string(text)), nil
 }
 
 func textSnippet(text string) string {

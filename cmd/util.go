@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -181,7 +182,7 @@ func processOcrSuccess(res ocrResultsInfo) {
 		headerBorder := strings.Repeat("=", len(headerPages))
 		headerText := fmt.Sprintf("%s\n%s\n%s\n", headerBorder, headerPages, headerBorder)
 
-		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, p.text)
+		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, cleanOcrText(p.text))
 
 		// save to page file
 		if err := writeFileWithContents(ocrOneFile, ocrOneText); err != nil {
@@ -255,6 +256,30 @@ func epochToInt64(epoch string) (int64, error) {
 	}
 
 	return int64(e), nil
+}
+
+func cleanOcrText(text string) string {
+	// matches two or more consecutive newlines
+	squeezeLines := regexp.MustCompile(`\n\n+`)
+
+	// matches strings with at least three alphanumeric characters anywhere.
+	// this is fairly conservative but is actually pretty effective at removing truly noisy lines.
+	validLine := regexp.MustCompile(`(?i)([[:alnum:]].*){3,}`)
+
+	lines := strings.Split(text, "\n")
+
+	var keep []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || validLine.MatchString(line) == true {
+			keep = append(keep, line)
+		}
+	}
+
+	s := strings.Join(keep, "\n")
+	s = squeezeLines.ReplaceAllString(s, "\n\n")
+
+	return s
 }
 
 func init() {
