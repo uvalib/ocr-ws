@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -747,7 +748,7 @@ func awsOpenRemoteURL(remoteURL string) io.ReadCloser {
 	for i := 1; i <= maxTries; i++ {
 		h, err := http.Get(remoteURL)
 
-		if err == nil && h.StatusCode == 200 {
+		if err == nil && h.StatusCode == http.StatusOK {
 			return h.Body
 		}
 
@@ -827,7 +828,10 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 
 	start := time.Now()
 
+	uploadCount := 0
 	uploadFailed := false
+
+	mutex := &sync.Mutex{}
 
 	for i := range ocr.ts.Pages {
 		page := &ocr.ts.Pages[i]
@@ -835,6 +839,11 @@ func awsUploadImagesConcurrently(ocr ocrInfo) error {
 			if err := awsUploadImage(uploader, ocr.reqID, page.imageSource, page.remoteName); err != nil {
 				uploadFailed = true
 				log.Printf("Failed to upload image: [%s]", err.Error())
+			} else {
+				mutex.Lock()
+				uploadCount++
+				reqUpdateImagesUploaded(ocr.workDir, ocr.reqID, uploadCount)
+				mutex.Unlock()
 			}
 		})
 	}

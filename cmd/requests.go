@@ -18,8 +18,9 @@ type reqInfo struct {
 	Finished       string
 	AWSWorkflowID  string
 	AWSRunID       string
-	ImagesTotal    string
+	ImagesUploaded string
 	ImagesComplete string
+	ImagesTotal    string
 }
 
 func reqFileName(path string) string {
@@ -88,13 +89,16 @@ func reqInProgress(path string) (bool, string) {
 
 	log.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
 
-	total, _ := strconv.Atoi(req.ImagesTotal)
+	uploaded, _ := strconv.Atoi(req.ImagesUploaded)
 	complete, _ := strconv.Atoi(req.ImagesComplete)
+	total, _ := strconv.Atoi(req.ImagesTotal)
 
 	pct := zeroPct
 	if total > 0 {
-		pct = fmt.Sprintf("%d%%", (100*complete)/total)
-		log.Printf("progress: %s / %s => %s", req.ImagesComplete, req.ImagesTotal, pct)
+		stepsDone := uploaded + complete
+		stepsTotal := 2 * total
+		pct = fmt.Sprintf("%d%%", (100*stepsDone)/stepsTotal)
+		log.Printf("progress: (%s + %s) / (2 * %s) => %d / %d => %s", req.ImagesUploaded, req.ImagesComplete, req.ImagesTotal, stepsDone, stepsTotal, pct)
 	}
 
 	// check if this is an open workflow
@@ -130,7 +134,7 @@ func reqInitialize(path, reqid string) error {
 
 	// attempt to create tables, even if they exist
 
-	query := `create table if not exists request_info (id integer not null primary key, req_id text unique, started text, finished text, aws_workflow_id text, aws_run_id text, images_total text, images_complete text);`
+	query := `create table if not exists request_info (id integer not null primary key, req_id text unique, started text, finished text, aws_workflow_id text, aws_run_id text, images_uploaded text, images_complete text, images_total text);`
 	_, err = db.Exec(query)
 	if err != nil {
 		log.Printf("[req] failed to create request_info table: [%s]", err.Error())
@@ -151,7 +155,7 @@ func reqInitialize(path, reqid string) error {
 		log.Printf("[req] failed to create request transaction: [%s]", txErr.Error())
 		return errors.New("failed to create request transaction")
 	}
-	stmt, err := tx.Prepare("insert into request_info (req_id, started, finished, aws_workflow_id, aws_run_id, images_total, images_complete) values (?, '', '', '', '', '0', '0');")
+	stmt, err := tx.Prepare("insert into request_info (req_id, started, finished, aws_workflow_id, aws_run_id, images_uploaded, images_complete, images_total) values (?, '', '', '', '', '0', '0', '0');")
 	if err != nil {
 		log.Printf("[req] failed to prepare request transaction: [%s]", err.Error())
 		return errors.New("failed to prepare request transaction")
@@ -185,7 +189,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 		clause = fmt.Sprintf(" where req_id = '%s'", reqid)
 	}
 
-	query := fmt.Sprintf("select req_id, started, finished, aws_workflow_id, aws_run_id, images_total, images_complete from request_info%s;", clause)
+	query := fmt.Sprintf("select req_id, started, finished, aws_workflow_id, aws_run_id, images_uploaded, images_complete, images_total from request_info%s;", clause)
 	rows, err := db.Query(query)
 	if err != nil {
 		log.Printf("[req] failed to retrieve request info: [%s]", err.Error())
@@ -249,12 +253,16 @@ func reqUpdateAwsRunID(path, reqid, value string) error {
 	return reqUpdateRequestColumn(path, reqid, "aws_run_id", value)
 }
 
-func reqUpdateImagesTotal(path, reqid string, value int) error {
-	return reqUpdateRequestColumn(path, reqid, "images_total", fmt.Sprintf("%d", value))
+func reqUpdateImagesUploaded(path, reqid string, value int) error {
+	return reqUpdateRequestColumn(path, reqid, "images_uploaded", fmt.Sprintf("%d", value))
 }
 
 func reqUpdateImagesComplete(path, reqid string, value int) error {
 	return reqUpdateRequestColumn(path, reqid, "images_complete", fmt.Sprintf("%d", value))
+}
+
+func reqUpdateImagesTotal(path, reqid string, value int) error {
+	return reqUpdateRequestColumn(path, reqid, "images_total", fmt.Sprintf("%d", value))
 }
 
 func reqAddRecipientByType(path string, rtype int, rvalue string) error {
