@@ -19,9 +19,8 @@ import (
 // structures
 
 type ocrPidInfo struct {
-	pid   string // page pid
-	title string
-	text  string
+	pid  string // page pid
+	text string
 }
 
 type ocrResultsInfo struct {

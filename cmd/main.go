@@ -51,6 +51,8 @@ func main() {
 	router.Use(cors.New(corsCfg))
 
 	router.GET("/", rootHandler)
+	router.GET("/robots.txt", robotsHandler)
+	router.GET("/favicon.ico", ignoreHandler)
 	router.GET("/version", versionHandler)
 	router.GET("/healthcheck", healthCheckHandler)
 
@@ -67,6 +69,15 @@ func main() {
 // Handle a request for /
 func rootHandler(c *gin.Context) {
 	c.String(http.StatusOK, fmt.Sprintf("OCR service version %s", version))
+}
+
+// Handle a request for /robots.txt
+func robotsHandler(c *gin.Context) {
+	c.String(http.StatusOK, "User-agent: * Disallow: /")
+}
+
+// Handle a request for /favicon.ico
+func ignoreHandler(c *gin.Context) {
 }
 
 // Handle a request for /version

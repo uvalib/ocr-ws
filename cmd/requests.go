@@ -96,11 +96,11 @@ func reqInProgress(path string) (bool, string) {
 	if req.AWSWorkflowID == "" || req.AWSRunID == "" {
 		log.Printf("no valid request info found; checking timestamps")
 
-		if inProgress := reqInProgressByDates(req); inProgress == true {
+		if reqInProgressByDates(req) == true {
 			return true, pct
-		} else {
-			return false, zeroPct
 		}
+
+		return false, zeroPct
 	}
 
 	log.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
