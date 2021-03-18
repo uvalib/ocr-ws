@@ -198,7 +198,7 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&req.ReqID, &req.Started, &req.Finished, &req.AWSWorkflowID, &req.AWSRunID, &req.ImagesTotal, &req.ImagesComplete)
+		err = rows.Scan(&req.ReqID, &req.Started, &req.Finished, &req.AWSWorkflowID, &req.AWSRunID, &req.ImagesUploaded, &req.ImagesComplete, &req.ImagesTotal)
 		if err != nil {
 			log.Printf("[req] failed to scan request info: [%s]", err.Error())
 			return nil, errors.New("failed to scan request info")
