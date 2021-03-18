@@ -732,49 +732,53 @@ func awsDeleteImages(reqDir string) error {
 	*/
 }
 
-func awsOpenLocalFile(localFile string) io.ReadCloser {
-	f, err := os.Open(localFile)
-	if err != nil {
-		log.Printf("failed to open local file [%s]: [%s]", localFile, err.Error())
-		return nil
-	}
-
-	return f
-}
-
-func awsOpenRemoteURL(remoteURL string) io.ReadCloser {
+func openURL(url string) (io.ReadCloser, error) {
 	maxTries := 5
+	backoff := 1
 
 	for i := 1; i <= maxTries; i++ {
-		h, err := http.Get(remoteURL)
-
-		if err == nil && h.StatusCode == http.StatusOK {
-			return h.Body
-		}
+		h, err := http.Get(url)
 
 		if err != nil {
-			log.Printf("[try %d/%d] open [%s] failed: %s", i, maxTries, remoteURL, err.Error())
-		} else {
-			log.Printf("[try %d/%d] open [%s] failed: received http status %d", i, maxTries, remoteURL, h.StatusCode)
+			return nil, err
 		}
 
-		time.Sleep(5 * time.Second)
+		if h.StatusCode == http.StatusOK {
+			return h.Body, nil
+		}
+
+		if h.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("received http status: %s", h.Status)
+		}
+
+		if i == maxTries {
+			log.Printf("open [%s] (try %d/%d): received status: %s; giving up", url, i, maxTries, h.Status)
+			return nil, fmt.Errorf("max tries reached")
+		}
+
+		log.Printf("open [%s] (try %d/%d): received status: %s; will try again in %d seconds...", url, i, maxTries, h.Status, backoff)
+
+		time.Sleep(time.Duration(backoff) * time.Second)
+		backoff *= 2
 	}
 
-	log.Printf("gave up opening: [%s]", remoteURL)
-
-	return nil
+	return nil, fmt.Errorf("max tries reached")
 }
 
 func awsUploadImage(uploader *s3manager.Uploader, reqID, imageSource, remoteName string) error {
 	s3File := getS3Filename(reqID, remoteName)
 
 	var imageStream io.ReadCloser
+	var err error
 
 	if strings.HasPrefix(imageSource, "/") {
-		imageStream = awsOpenLocalFile(imageSource)
+		imageStream, err = os.Open(imageSource)
 	} else {
-		imageStream = awsOpenRemoteURL(imageSource)
+		imageStream, err = openURL(imageSource)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	if imageStream == nil {
