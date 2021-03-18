@@ -81,14 +81,6 @@ func reqInProgress(path string) (bool, string) {
 		return false, zeroPct
 	}
 
-	if req.AWSWorkflowID == "" || req.AWSRunID == "" {
-		log.Printf("no valid request info found; checking timestamps")
-
-		return reqInProgressByDates(req), zeroPct
-	}
-
-	log.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
-
 	uploaded, _ := strconv.Atoi(req.ImagesUploaded)
 	complete, _ := strconv.Atoi(req.ImagesComplete)
 	total, _ := strconv.Atoi(req.ImagesTotal)
@@ -100,6 +92,18 @@ func reqInProgress(path string) (bool, string) {
 		pct = fmt.Sprintf("%d%%", (100*stepsDone)/stepsTotal)
 		log.Printf("progress: (%s + %s) / (2 * %s) => %d / %d => %s", req.ImagesUploaded, req.ImagesComplete, req.ImagesTotal, stepsDone, stepsTotal, pct)
 	}
+
+	if req.AWSWorkflowID == "" || req.AWSRunID == "" {
+		log.Printf("no valid request info found; checking timestamps")
+
+		if inProgress := reqInProgressByDates(req); inProgress == true {
+			return true, pct
+		} else {
+			return false, zeroPct
+		}
+	}
+
+	log.Printf("found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
 
 	// check if this is an open workflow
 	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowID, req.AWSRunID)
