@@ -165,6 +165,17 @@ func processCallbacks(workdir, reqid, status, message string) {
 	}
 }
 
+func getVirgoURL(res ocrResultsInfo) string {
+	v4url := "https://search.lib.virginia.edu"
+	req, reqErr := reqGetRequestInfo(res.workDir, res.reqid)
+	if reqErr != nil || req.VirgoID == "" {
+		v4url += fmt.Sprintf("/?q=keyword:{%s}", res.pid)
+	} else {
+		v4url += fmt.Sprintf("/items/%s", req.VirgoID)
+	}
+	return v4url
+}
+
 func processOcrSuccess(res ocrResultsInfo) {
 	log.Printf("[%s] processing and posting successful OCR", res.pid)
 
@@ -205,7 +216,24 @@ func processOcrSuccess(res ocrResultsInfo) {
 		return
 	}
 
-	processEmails(res.workDir, fmt.Sprintf("OCR Results for %s", res.pid), "OCR results are attached.", ocrAllFile)
+	subject := "Your OCR request is ready to view"
+	body := fmt.Sprintf(`Hello,
+
+The OCR document you requested is attached.
+
+The file is also now discoverable in Virgo, along with citation and rights information: %s
+
+Please note that it is your responsibility to determine appropriate rights and usage for Library material.
+
+If you have questions about the OCR service, contact virgo-feedback@virginia.edu.
+
+You can learn more about accessible Library services here: https://www.library.virginia.edu/services/accessibility-services/
+
+Sincerely,
+
+University of Virginia Library`, getVirgoURL(res))
+
+	processEmails(res.workDir, subject, body, ocrAllFile)
 	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
 
 	os.RemoveAll(res.workDir)
@@ -216,7 +244,22 @@ func processOcrFailure(res ocrResultsInfo) {
 
 	reqUpdateFinished(res.workDir, res.reqid)
 
-	processEmails(res.workDir, fmt.Sprintf("OCR Failure for %s", res.pid), fmt.Sprintf("OCR failure details: %s", res.details), "")
+	subject := "Your OCR request failed"
+	body := fmt.Sprintf(`Hello,
+
+The OCR document you requested failed to generate.  The reason for failure was: %s
+
+You can try again by accessing the item in Virgo: %s
+
+If you have questions about the OCR service, contact virgo-feedback@virginia.edu.
+
+You can learn more about accessible Library services here: https://www.library.virginia.edu/services/accessibility-services/
+
+Sincerely,
+
+University of Virginia Library`, res.details, getVirgoURL(res))
+
+	processEmails(res.workDir, subject, body, "")
 	processCallbacks(res.workDir, res.reqid, "fail", res.details)
 
 	os.RemoveAll(res.workDir)

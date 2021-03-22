@@ -227,6 +227,7 @@ func generateOcr(ocr ocrInfo) {
 	reqInitialize(ocr.workDir, ocr.reqID)
 	reqUpdateStarted(ocr.workDir, ocr.reqID)
 	reqUpdateImagesTotal(ocr.workDir, ocr.reqID, len(ocr.ts.Pages))
+	reqUpdateVirgoID(ocr.workDir, ocr.reqID, ocr.ts.Pid.CatalogKey)
 	reqAddEmail(ocr.workDir, ocr.req.email)
 	reqAddCallback(ocr.workDir, ocr.req.callback)
 

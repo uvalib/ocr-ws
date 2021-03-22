@@ -25,6 +25,7 @@ type tsGenericPidInfo struct {
 	OcrLanguageHint  string `json:"ocr_language_hint,omitempty"`
 	HasOcr           bool   `json:"has_ocr,omitempty"`
 	HasTranscription bool   `json:"has_transcription,omitempty"`
+	CatalogKey       string `json:"catalogKey,omitempty"`
 	imageSource      string
 	remoteName       string
 }
@@ -113,6 +114,7 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 	log.Printf("OcrHint         : [%s]", ts.Pid.OcrHint)
 	log.Printf("OcrCandidate    : [%t]", ts.Pid.OcrCandidate)
 	log.Printf("OcrLanguageHint : [%s]", ts.Pid.OcrLanguageHint)
+	log.Printf("CatalogKey      : [%s]", ts.Pid.CatalogKey)
 
 	switch {
 	case ts.Pid.Type == "master_file":
