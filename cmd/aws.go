@@ -175,7 +175,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 			continue
 		}
 
-		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, text: lambdaRes.Text})
+		res.pages = append(res.pages, ocrPidInfo{pid: lambdaReq.Pid, text: strings.TrimSpace(lambdaRes.Text)})
 	}
 
 	// sort by pid
