@@ -218,8 +218,6 @@ func reqGetRequestInfo(path, reqid string) (*reqInfo, error) {
 		return nil, errors.New("failed to select request info")
 	}
 
-	log.Printf("req: %+v", req)
-
 	return &req, nil
 }
 

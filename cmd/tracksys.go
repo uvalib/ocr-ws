@@ -55,7 +55,6 @@ func getTsURL(api string, pid string, params map[string]string) string {
 		url += fmt.Sprintf("?%s", strings.Join(qp, "&"))
 	}
 
-	log.Printf("Tracksys URL: [%s]", url)
 	return url
 }
 

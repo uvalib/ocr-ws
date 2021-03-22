@@ -89,42 +89,38 @@ func ocrGenerateHandler(c *gin.Context) {
 
 	ocr.ts = ts
 
-	/*
-		// shouldn't happen from virgo?
+	// check if ocr/transcription already exists; if so, just email now
 
-		// check if ocr/transcription already exists; if so, just email now
+	if ts.Pid.HasOcr == true {
+		log.Printf("OCR/transcription already exists; emailing now")
 
-		if ocr.ts.Pid.TextSource != "" {
-			log.Printf("OCR/transcription already exists; emailing now")
+		reqAddEmail(ocr.workDir, ocr.req.email)
+		reqAddCallback(ocr.workDir, ocr.req.callback)
 
-			reqAddEmail(ocr.workDir, ocr.req.email)
-			reqAddCallback(ocr.workDir, ocr.req.callback)
+		res := ocrResultsInfo{}
 
-			res := ocrResultsInfo{}
+		res.pid = ocr.req.pid
+		res.reqid = ocr.reqID
+		res.workDir = ocr.workDir
 
-			res.pid = ocr.req.pid
-			res.reqid = ocr.reqID
-			res.workDir = ocr.workDir
-
-			for _, p := range ocr.ts.Pages {
-				txt, txtErr := tsGetText(p.Pid)
-				if txtErr != nil {
-					log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
-					res.details = "Error encountered while retrieving text for one or more pages"
-					processOcrFailure(res)
-					c.String(http.StatusInternalServerError, "ERROR: Could not retrieve page text")
-					return
-				}
-
-				res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, title: p.Title, text: txt})
+		for _, p := range ocr.ts.Pages {
+			txt, txtErr := tsGetText(p.Pid)
+			if txtErr != nil {
+				log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+				res.details = "Error encountered while retrieving text for one or more pages"
+				processOcrFailure(res)
+				c.String(http.StatusInternalServerError, "ERROR: Could not retrieve page text")
+				return
 			}
 
-			processOcrSuccess(res)
-
-			c.String(http.StatusOK, "OK")
-			return
+			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, text: txt})
 		}
-	*/
+
+		processOcrSuccess(res)
+
+		c.String(http.StatusOK, "OK")
+		return
+	}
 
 	// check if this is ocr-able
 
