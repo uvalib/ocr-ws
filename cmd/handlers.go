@@ -94,6 +94,8 @@ func ocrGenerateHandler(c *gin.Context) {
 	if ts.Pid.HasOcr == true {
 		log.Printf("OCR/transcription already exists; emailing now")
 
+		reqInitialize(ocr.workDir, ocr.reqID)
+		reqUpdateVirgoID(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
 		reqAddEmail(ocr.workDir, ocr.req.email)
 		reqAddCallback(ocr.workDir, ocr.req.callback)
 
@@ -102,6 +104,7 @@ func ocrGenerateHandler(c *gin.Context) {
 		res.pid = ocr.req.pid
 		res.reqid = ocr.reqID
 		res.workDir = ocr.workDir
+		res.overwrite = false
 
 		for _, p := range ocr.ts.Pages {
 			txt, txtErr := tsGetText(p.Pid)

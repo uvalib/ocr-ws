@@ -24,11 +24,12 @@ type ocrPidInfo struct {
 }
 
 type ocrResultsInfo struct {
-	pid     string // request pid
-	reqid   string
-	details string
-	workDir string
-	pages   []ocrPidInfo
+	pid       string // request pid
+	reqid     string
+	details   string
+	workDir   string
+	pages     []ocrPidInfo
+	overwrite bool
 }
 
 type serviceVersion struct {
@@ -201,10 +202,12 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
 
-		// post to tracksys
+		// post to tracksys?
 
-		if err := tsPostText(p.pid, p.text); err != nil {
-			log.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
+		if res.overwrite == true {
+			if err := tsPostText(p.pid, p.text); err != nil {
+				log.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
+			}
 		}
 	}
 

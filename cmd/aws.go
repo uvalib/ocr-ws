@@ -144,6 +144,7 @@ func awsFinalizeSuccess(info decisionInfo) {
 	res.pid = info.req.Pid
 	res.reqid = info.req.ReqID
 	res.workDir = getWorkDir(info.req.Path)
+	res.overwrite = true
 
 	for _, e := range info.ocrResults {
 		// lambda result is json embedded within a json string value; must unmarshal twice
