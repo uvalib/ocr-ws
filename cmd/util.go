@@ -247,12 +247,12 @@ func processOcrFailure(res ocrResultsInfo) {
 
 	reqUpdateFinished(res.workDir, res.reqid)
 
-	subject := "Your OCR request failed"
+	subject := "Your OCR request cannot be completed"
 	body := fmt.Sprintf(`Hello,
 
-The OCR document you requested failed to generate.  The reason for failure was: %s
+Unfortunately, the OCR you requested for the item below has failed. This may be a result of a technical issue or a problem with the original document.
 
-You can try again by accessing the item in Virgo: %s
+%s
 
 If you have questions about the OCR service, contact virgo-feedback@virginia.edu.
 
@@ -260,7 +260,7 @@ You can learn more about accessible Library services here: https://www.library.v
 
 Sincerely,
 
-University of Virginia Library`, res.details, getVirgoURL(res))
+University of Virginia Library`, getVirgoURL(res))
 
 	processEmails(res.workDir, subject, body, "")
 	processCallbacks(res.workDir, res.reqid, "fail", res.details)
