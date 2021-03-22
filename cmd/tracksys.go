@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+type tsMetadataInfo struct {
+	CatalogKey string `json:"catalogKey,omitempty"`
+}
+
 // the line between metadata/masterfile fields is getting blurry; just lump them together
 type tsGenericPidInfo struct {
 	ID               int    `json:"id,omitempty"`
@@ -25,28 +29,38 @@ type tsGenericPidInfo struct {
 	OcrLanguageHint  string `json:"ocr_language_hint,omitempty"`
 	HasOcr           bool   `json:"has_ocr,omitempty"`
 	HasTranscription bool   `json:"has_transcription,omitempty"`
-	CatalogKey       string `json:"catalogKey,omitempty"`
 	imageSource      string
 	remoteName       string
 }
 
 // holds metadata pid/page info
 type tsPidInfo struct {
+	Metadata  tsMetadataInfo
 	Pid       tsGenericPidInfo
 	Pages     []tsGenericPidInfo
 	isOcrable bool
 }
 
-func getTsURL(api string, pid string, unit string) string {
+func getTsURL(api string, pid string, params map[string]string) string {
 	url := fmt.Sprintf("%s%s/%s", config.tsAPIHost.value, api, pid)
-	if unit != "" {
-		url = fmt.Sprintf("%s?unit=%s", url, unit)
+
+	var qp []string
+	for k, v := range params {
+		if v != "" {
+			qp = append(qp, fmt.Sprintf("%s=%s", k, v))
+		}
 	}
+
+	if len(qp) > 0 {
+		url += fmt.Sprintf("?%s", strings.Join(qp, "&"))
+	}
+
+	log.Printf("Tracksys URL: [%s]", url)
 	return url
 }
 
 func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
-	url := getTsURL("/api/manifest", pid, unit)
+	url := getTsURL("/api/manifest", pid, map[string]string{"unit": unit})
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -82,8 +96,40 @@ func tsGetPagesFromManifest(pid, unit string) ([]tsGenericPidInfo, error) {
 	return tsPages, nil
 }
 
+func tsGetMetadataInfo(pid, unit string) (tsMetadataInfo, error) {
+	url := getTsURL("/api/metadata", pid, map[string]string{"unit": unit, "type": "brief"})
+
+	var meta tsMetadataInfo
+
+	req, reqErr := http.NewRequest("GET", url, nil)
+	if reqErr != nil {
+		log.Printf("NewRequest() failed: %s", reqErr.Error())
+		return meta, errors.New("failed to create new pid request")
+	}
+
+	res, resErr := client.Do(req)
+	if resErr != nil {
+		log.Printf("client.Do() failed: %s", resErr.Error())
+		return meta, errors.New("failed to receive pid response")
+	}
+
+	defer res.Body.Close()
+
+	// parse json from body
+
+	buf, _ := ioutil.ReadAll(res.Body)
+	if jErr := json.Unmarshal(buf, &meta); jErr != nil {
+		log.Printf("Unmarshal() failed: %s", jErr.Error())
+		return meta, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
+	}
+
+	log.Printf("CatalogKey      : [%s]", meta.CatalogKey)
+
+	return meta, nil
+}
+
 func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
-	url := getTsURL("/api/pid", pid, "")
+	url := getTsURL("/api/pid", pid, nil)
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -109,12 +155,17 @@ func tsGetPidInfo(pid, unit string) (*tsPidInfo, error) {
 		return nil, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
 	}
 
+	if meta, err := tsGetMetadataInfo(pid, unit); err != nil {
+		log.Printf("failed to get metadata info: %s", err.Error())
+	} else {
+		ts.Metadata = meta
+	}
+
 	log.Printf("Type            : [%s]", ts.Pid.Type)
 	log.Printf("TextSource      : [%s]", ts.Pid.TextSource)
 	log.Printf("OcrHint         : [%s]", ts.Pid.OcrHint)
 	log.Printf("OcrCandidate    : [%t]", ts.Pid.OcrCandidate)
 	log.Printf("OcrLanguageHint : [%s]", ts.Pid.OcrLanguageHint)
-	log.Printf("CatalogKey      : [%s]", ts.Pid.CatalogKey)
 
 	switch {
 	case ts.Pid.Type == "master_file":
@@ -171,7 +222,7 @@ func tsGetMetadataPidInfo(pid, unit string) (*tsPidInfo, error) {
 }
 
 func tsGetText(pid string) (string, error) {
-	url := getTsURL("/api/fulltext", pid, "") + "?type=transcription"
+	url := getTsURL("/api/fulltext", pid, map[string]string{"type": "transcription"})
 
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
@@ -227,7 +278,7 @@ func tsPostText(pid, text string) error {
 		"text": {text},
 	}
 
-	url := getTsURL("/api/fulltext", pid, "") + "/ocr"
+	url := getTsURL("/api/fulltext", pid+"/ocr", nil)
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
@@ -272,7 +323,7 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 		"json": {string(output)},
 	}
 
-	url := getTsURL(api, "", "")
+	url := getTsURL(api, "", nil)
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
