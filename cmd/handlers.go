@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -95,7 +94,8 @@ func ocrGenerateHandler(c *gin.Context) {
 		log.Printf("OCR/transcription already exists; emailing now")
 
 		reqInitialize(ocr.workDir, ocr.reqID)
-		reqUpdateVirgoID(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
+		reqUpdateCatalogKey(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
+		reqUpdateCallNumber(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CallNumber)
 		reqAddEmail(ocr.workDir, ocr.req.email)
 		reqAddCallback(ocr.workDir, ocr.req.callback)
 
@@ -141,22 +141,21 @@ func ocrGenerateHandler(c *gin.Context) {
 }
 
 func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
-	var ocrText strings.Builder
+	var pages []string
 
-	// preallocate buffer with assumed worst-case of 4K bytes per page
-	ocrText.Grow(len(ts.Pages) * 4096)
-
-	for i, p := range ts.Pages {
+	for _, p := range ts.Pages {
 		pageText, txtErr := tsGetText(p.Pid)
 		if txtErr != nil {
 			log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 			return "", errors.New("could not retrieve page text")
 		}
 
-		fmt.Fprintf(&ocrText, "[Page: %d of %d]\n\n%s\n\n", i+1, len(ts.Pages), pageText)
+		pages = append(pages, pageText)
 	}
 
-	return ocrText.String(), nil
+	ocrText := ocrFormatDocument(pages)
+
+	return ocrText, nil
 }
 
 func ocrTextHandler(c *gin.Context) {
@@ -226,7 +225,8 @@ func generateOcr(ocr ocrInfo) {
 	reqInitialize(ocr.workDir, ocr.reqID)
 	reqUpdateStarted(ocr.workDir, ocr.reqID)
 	reqUpdateImagesTotal(ocr.workDir, ocr.reqID, len(ocr.ts.Pages))
-	reqUpdateVirgoID(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
+	reqUpdateCatalogKey(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
+	reqUpdateCallNumber(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CallNumber)
 	reqAddEmail(ocr.workDir, ocr.req.email)
 	reqAddCallback(ocr.workDir, ocr.req.callback)
 

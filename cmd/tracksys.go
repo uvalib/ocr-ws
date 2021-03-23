@@ -14,6 +14,7 @@ import (
 
 type tsMetadataInfo struct {
 	CatalogKey string `json:"catalogKey,omitempty"`
+	CallNumber string `json:"callNumber,omitempty"`
 }
 
 // the line between metadata/masterfile fields is getting blurry; just lump them together
@@ -123,6 +124,7 @@ func tsGetMetadataInfo(pid, unit string) (tsMetadataInfo, error) {
 	}
 
 	log.Printf("CatalogKey      : [%s]", meta.CatalogKey)
+	log.Printf("CallNumber      : [%s]", meta.CallNumber)
 
 	return meta, nil
 }

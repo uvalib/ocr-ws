@@ -169,12 +169,33 @@ func processCallbacks(workdir, reqid, status, message string) {
 func getVirgoURL(res ocrResultsInfo) string {
 	v4url := "https://search.lib.virginia.edu"
 	req, reqErr := reqGetRequestInfo(res.workDir, res.reqid)
-	if reqErr != nil || req.VirgoID == "" {
+	if reqErr != nil || req.CatalogKey == "" {
 		v4url += fmt.Sprintf("/?q=keyword:{%s}", res.pid)
 	} else {
-		v4url += fmt.Sprintf("/items/%s", req.VirgoID)
+		v4url += fmt.Sprintf("/items/%s", req.CatalogKey)
 	}
 	return v4url
+}
+
+func ocrFormatPageText(text string, i int, total int) string {
+	headerPages := fmt.Sprintf("Page %d of %d", i, total)
+	headerBorder := strings.Repeat("=", len(headerPages))
+	headerText := fmt.Sprintf("%s\n%s\n%s\n", headerBorder, headerPages, headerBorder)
+
+	pageText := fmt.Sprintf("%s\n%s\n", headerText, cleanOcrText(text))
+
+	return pageText
+}
+
+func ocrFormatDocument(pages []string) string {
+	doc := ""
+
+	for i, page := range pages {
+		pageText := ocrFormatPageText(page, i+1, len(pages))
+		doc += "\n" + pageText + "\n"
+	}
+
+	return doc
 }
 
 func processOcrSuccess(res ocrResultsInfo) {
@@ -182,28 +203,11 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 	reqUpdateFinished(res.workDir, res.reqid)
 
-	ocrAllText := ""
-	ocrAllFile := fmt.Sprintf("%s/ocr.txt", res.workDir)
-
-	for i, p := range res.pages {
-		// save to one file
-		ocrOneFile := fmt.Sprintf("%s/%s.txt", res.workDir, p.pid)
-
-		headerPages := fmt.Sprintf("Page %d of %d", i+1, len(res.pages))
-		headerBorder := strings.Repeat("=", len(headerPages))
-		headerText := fmt.Sprintf("%s\n%s\n%s\n", headerBorder, headerPages, headerBorder)
-
-		ocrOneText := fmt.Sprintf("%s\n%s\n", headerText, cleanOcrText(p.text))
-
-		// save to page file
-		if err := writeFileWithContents(ocrOneFile, ocrOneText); err != nil {
-			log.Printf("[%s] error creating results page file: [%s]", res.pid, err.Error())
-		}
-
-		ocrAllText = fmt.Sprintf("%s\n%s\n", ocrAllText, ocrOneText)
+	var pages []string
+	for _, p := range res.pages {
+		pages = append(pages, p.text)
 
 		// post to tracksys?
-
 		if res.overwrite == true {
 			if err := tsPostText(p.pid, p.text); err != nil {
 				log.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
@@ -211,8 +215,17 @@ func processOcrSuccess(res ocrResultsInfo) {
 		}
 	}
 
+	ocrBaseName := res.pid
+	req, reqErr := reqGetRequestInfo(res.workDir, res.reqid)
+	if reqErr == nil && req.CallNumber != "" {
+		ocrBaseName = req.CallNumber
+	}
+
+	ocrText := ocrFormatDocument(pages)
+	ocrFile := fmt.Sprintf("%s/%s.txt", res.workDir, ocrBaseName)
+
 	// save to all file
-	if err := writeFileWithContents(ocrAllFile, ocrAllText); err != nil {
+	if err := writeFileWithContents(ocrFile, ocrText); err != nil {
 		log.Printf("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
 		res.details = "OCR generation process finalization failed"
 		processOcrFailure(res)
@@ -236,7 +249,7 @@ Sincerely,
 
 University of Virginia Library`, getVirgoURL(res))
 
-	processEmails(res.workDir, subject, body, ocrAllFile)
+	processEmails(res.workDir, subject, body, ocrFile)
 	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
 
 	os.RemoveAll(res.workDir)
