@@ -24,6 +24,11 @@ type configBoolItem struct {
 	configItem
 }
 
+type configIntItem struct {
+	value int
+	configItem
+}
+
 type configData struct {
 	listenPort            configStringItem
 	storageDir            configStringItem
@@ -33,6 +38,10 @@ type configData struct {
 	iiifURLTemplate       configStringItem
 	tsAPIHost             configStringItem
 	tsReadOnly            configBoolItem
+	emailName             configStringItem
+	emailAddress          configStringItem
+	emailHost             configStringItem
+	emailPort             configIntItem
 	awsDisabled           configBoolItem
 	awsAccessKeyID        configStringItem
 	awsSecretAccessKey    configStringItem
@@ -59,6 +68,10 @@ func init() {
 	config.iiifURLTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.tsAPIHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsReadOnly = configBoolItem{value: false, configItem: configItem{flag: "r", env: "OCRWS_TRACKSYS_READ_ONLY", desc: "tracksys read-only flag"}}
+	config.emailName = configStringItem{value: "", configItem: configItem{flag: "n", env: "OCRWS_EMAIL_NAME", desc: "email name"}}
+	config.emailAddress = configStringItem{value: "", configItem: configItem{flag: "d", env: "OCRWS_EMAIL_ADDRESS", desc: "email address"}}
+	config.emailHost = configStringItem{value: "", configItem: configItem{flag: "s", env: "OCRWS_EMAIL_HOST", desc: "smtp host"}}
+	config.emailPort = configIntItem{value: 0, configItem: configItem{flag: "p", env: "OCRWS_EMAIL_PORT", desc: "smtp port"}}
 	config.awsDisabled = configBoolItem{value: false, configItem: configItem{flag: "L", env: "AWS_DISABLED", desc: "aws disabled flag"}}
 	config.awsAccessKeyID = configStringItem{value: "", configItem: configItem{flag: "A", env: "AWS_ACCESS_KEY_ID", desc: "aws access key id"}}
 	config.awsSecretAccessKey = configStringItem{value: "", configItem: configItem{flag: "S", env: "AWS_SECRET_ACCESS_KEY", desc: "aws secret access key"}}
@@ -80,15 +93,18 @@ func getBoolEnv(optEnv string) bool {
 	return value
 }
 
+func getIntEnv(optEnv string) int {
+	value, _ := strconv.Atoi(os.Getenv(optEnv))
+
+	return value
+}
+
 func ensureConfigStringSet(item *configStringItem) bool {
-	isSet := true
-
 	if item.value == "" {
-		isSet = false
 		log.Printf("[ERROR] %s is not set, use %s variable or -%s flag", item.desc, item.env, item.flag)
+		return false
 	}
-
-	return isSet
+	return true
 }
 
 func flagStringVar(item *configStringItem) {
@@ -97,6 +113,10 @@ func flagStringVar(item *configStringItem) {
 
 func flagBoolVar(item *configBoolItem) {
 	flag.BoolVar(&item.value, item.flag, getBoolEnv(item.env), item.desc)
+}
+
+func flagIntVar(item *configIntItem) {
+	flag.IntVar(&item.value, item.flag, getIntEnv(item.env), item.desc)
 }
 
 func maskValue(value string) string {
@@ -117,6 +137,10 @@ func getConfigValues() {
 	flagStringVar(&config.iiifURLTemplate)
 	flagStringVar(&config.tsAPIHost)
 	flagBoolVar(&config.tsReadOnly)
+	flagStringVar(&config.emailName)
+	flagStringVar(&config.emailAddress)
+	flagStringVar(&config.emailHost)
+	flagIntVar(&config.emailPort)
 	flagBoolVar(&config.awsDisabled)
 	flagStringVar(&config.awsAccessKeyID)
 	flagStringVar(&config.awsSecretAccessKey)
@@ -143,6 +167,9 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.iiifURLTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsAPIHost) && configOK
+	configOK = ensureConfigStringSet(&config.emailName) && configOK
+	configOK = ensureConfigStringSet(&config.emailAddress) && configOK
+	configOK = ensureConfigStringSet(&config.emailHost) && configOK
 
 	if config.awsDisabled.value == false {
 		configOK = ensureConfigStringSet(&config.awsAccessKeyID) && configOK
@@ -172,6 +199,10 @@ func getConfigValues() {
 	log.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
 	log.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
 	log.Printf("[CONFIG] tsReadOnly            = [%v]", config.tsReadOnly.value)
+	log.Printf("[CONFIG] emailName             = [%s]", config.emailName.value)
+	log.Printf("[CONFIG] emailAddress          = [%s]", config.emailAddress.value)
+	log.Printf("[CONFIG] emailHost             = [%s]", config.emailHost.value)
+	log.Printf("[CONFIG] emailPort             = [%d]", config.emailPort.value)
 	log.Printf("[CONFIG] awsDisabled           = [%v]", config.awsDisabled.value)
 	log.Printf("[CONFIG] awsAccessKeyID        = [%s]", maskValue(config.awsAccessKeyID.value))
 	log.Printf("[CONFIG] awsSecretAccessKey    = [%s]", maskValue(config.awsSecretAccessKey.value))

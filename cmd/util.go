@@ -198,6 +198,22 @@ func ocrFormatDocument(pages []string) string {
 	return doc
 }
 
+func ocrEmailBody(message string) string {
+	body := fmt.Sprintf(`Hello,
+
+%s
+
+If you have questions about the OCR service, contact %s.
+
+Learn more about accessible Library services here: https://www.library.virginia.edu/services/accessibility-services/
+
+Sincerely,
+
+University of Virginia Library`, message, config.emailAddress.value)
+
+	return body
+}
+
 func processOcrSuccess(res ocrResultsInfo) {
 	log.Printf("[%s] processing and posting successful OCR", res.pid)
 
@@ -233,21 +249,14 @@ func processOcrSuccess(res ocrResultsInfo) {
 	}
 
 	subject := "Your OCR request is ready to view"
-	body := fmt.Sprintf(`Hello,
 
-The OCR document you requested is attached.
+	message := "The OCR document you requested is attached."
+	message += "\n\n"
+	message += "The file is also now discoverable in Virgo, along with citation and rights information: " + getVirgoURL(res)
+	message += "\n\n"
+	message += "Please note that it is your responsibility to determine appropriate rights and usage for Library material."
 
-The file is also now discoverable in Virgo, along with citation and rights information: %s
-
-Please note that it is your responsibility to determine appropriate rights and usage for Library material.
-
-If you have questions about the OCR service, contact virgo-feedback@virginia.edu.
-
-You can learn more about accessible Library services here: https://www.library.virginia.edu/services/accessibility-services/
-
-Sincerely,
-
-University of Virginia Library`, getVirgoURL(res))
+	body := ocrEmailBody(message)
 
 	processEmails(res.workDir, subject, body, ocrFile)
 	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
@@ -261,19 +270,12 @@ func processOcrFailure(res ocrResultsInfo) {
 	reqUpdateFinished(res.workDir, res.reqid)
 
 	subject := "Your OCR request cannot be completed"
-	body := fmt.Sprintf(`Hello,
 
-Unfortunately, the OCR you requested for the item below has failed. This may be a result of a technical issue or a problem with the original document.
+	message := "Unfortunately, the OCR document you requested has failed to generate. This may be a result of a technical issue or a problem with the original document."
+	message += "\n\n"
+	message += getVirgoURL(res)
 
-%s
-
-If you have questions about the OCR service, contact virgo-feedback@virginia.edu.
-
-You can learn more about accessible Library services here: https://www.library.virginia.edu/services/accessibility-services/
-
-Sincerely,
-
-University of Virginia Library`, getVirgoURL(res))
+	body := ocrEmailBody(message)
 
 	processEmails(res.workDir, subject, body, "")
 	processCallbacks(res.workDir, res.reqid, "fail", res.details)

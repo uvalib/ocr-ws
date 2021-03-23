@@ -1,13 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"gopkg.in/gomail.v2"
 )
 
 func sendEmail(m *gomail.Message) {
-	d := gomail.Dialer{Host: "smtp.mail.virginia.edu", Port: 25}
+	d := gomail.Dialer{Host: config.emailHost.value, Port: config.emailPort.value}
 
 	to := m.GetHeader("To")
 	subject := m.GetHeader("Subject")
@@ -27,7 +28,7 @@ func emailResults(to, subject, body, attachment string) {
 
 	m := gomail.NewMessage()
 
-	m.SetHeader("From", "UVA Library OCR-On-Demand <ocr-service@lib.virginia.edu>")
+	m.SetHeader("From", fmt.Sprintf("%s <%s>", config.emailName.value, config.emailAddress.value))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
