@@ -25,11 +25,11 @@ if [ $? -ne 0 ]; then
    exit 1
 fi
 
-# verify awk is available
-AWK_TOOL=awk
-which $AWK_TOOL > /dev/null 2>&1
+# verify sed is available
+SED_TOOL=sed
+which $SED_TOOL > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-   echo "ERROR: $AWK_TOOL is not available in this environment"
+   echo "ERROR: $SED_TOOL is not available in this environment"
    exit 1
 fi
 
@@ -40,7 +40,7 @@ END_TIME=$(expr $START_TIME + $TIMEOUT)
 # loop until timeout
 while true; do
 
-   VERSION=$($CURL_TOOL $ENDPOINT/version 2>/dev/null | $AWK_TOOL -F\" '{print $8}')
+   VERSION=$($CURL_TOOL $ENDPOINT/version 2>/dev/null | $SED_TOOL 's/^\(.*"build":"\)\([^"]*\)\(".*\)$/\2/g')
 
    # if we did not get a version, tag as unknown
    if [ -z "$VERSION" ]; then
