@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const version = "0.9.0"
+const version = "1.0.0"
 
 var sess *session.Session
 var client *http.Client
