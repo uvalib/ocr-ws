@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -597,9 +596,9 @@ func (c *clientContext) awsPollForDecisionTasks() {
 	}
 }
 
-func awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowID, runID string) bool {
+func (c *clientContext) awsWorkflowInList(ExecutionInfos []*swf.WorkflowExecutionInfo, workflowID, runID string) bool {
 	for _, e := range ExecutionInfos {
-		log.Printf("INFO: [AWS] checking WorkflowId: [%s] / RunId: [%s]", *e.Execution.WorkflowId, *e.Execution.RunId)
+		c.info("[AWS] checking WorkflowId: [%s] / RunId: [%s]", *e.Execution.WorkflowId, *e.Execution.RunId)
 
 		if *e.Execution.WorkflowId == workflowID && *e.Execution.RunId == runID {
 			return true
@@ -620,8 +619,8 @@ func awsListWorkflowDateRange() (time.Time, time.Time) {
 	return then, now
 }
 
-func awsWorkflowIsOpen(workflowID, runID string) (bool, error) {
-	log.Printf("INFO: [AWS] checking for open workflow: [%s]", workflowID)
+func (c *clientContext) awsWorkflowIsOpen(workflowID, runID string) (bool, error) {
+	c.info("[AWS] checking for open workflow: [%s]", workflowID)
 
 	svc := swf.New(sess)
 
@@ -638,15 +637,15 @@ func awsWorkflowIsOpen(workflowID, runID string) (bool, error) {
 	res, err := svc.ListOpenWorkflowExecutions(input)
 
 	if err != nil {
-		log.Printf("ERROR: [AWS] list open workflows error: [%s]", err.Error())
+		c.err("[AWS] list open workflows error: [%s]", err.Error())
 		return false, errors.New("failed to list open workflows")
 	}
 
-	return awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
+	return c.awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
 }
 
-func awsWorkflowIsClosed(workflowID, runID string) (bool, error) {
-	log.Printf("INFO: [AWS] checking for closed workflow: [%s]", workflowID)
+func (c *clientContext) awsWorkflowIsClosed(workflowID, runID string) (bool, error) {
+	c.info("[AWS] checking for closed workflow: [%s]", workflowID)
 
 	svc := swf.New(sess)
 
@@ -663,11 +662,11 @@ func awsWorkflowIsClosed(workflowID, runID string) (bool, error) {
 	res, err := svc.ListClosedWorkflowExecutions(input)
 
 	if err != nil {
-		log.Printf("ERROR: [AWS] list closed workflows error: [%s]", err.Error())
+		c.err("[AWS] list closed workflows error: [%s]", err.Error())
 		return false, errors.New("failed to list closed workflows")
 	}
 
-	return awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
+	return c.awsWorkflowInList(res.ExecutionInfos, workflowID, runID), nil
 }
 
 func (c *clientContext) awsDeleteImages(reqDir string) error {
@@ -677,7 +676,7 @@ func (c *clientContext) awsDeleteImages(reqDir string) error {
 	/*
 		svc := s3.New(sess)
 
-		log.Printf("INFO: [AWS] deleting: [%s]", reqDir)
+		c.info("[AWS] deleting: [%s]", reqDir)
 
 		iter := s3manager.NewDeleteListIterator(svc, &s3.ListObjectsInput{
 			Bucket: aws.String(config.awsBucketName.value),
@@ -687,7 +686,7 @@ func (c *clientContext) awsDeleteImages(reqDir string) error {
 		err := s3manager.NewBatchDeleteWithClient(svc).Delete(aws.BackgroundContext(), iter)
 
 		if err != nil {
-			log.Printf("ERROR: [AWS] S3 delete failed: [%s]", err.Error())
+			c.err("[AWS] S3 delete failed: [%s]", err.Error())
 		}
 
 		return err
@@ -733,7 +732,7 @@ func (c *clientContext) awsSubmitWorkflow(req workflowRequest) error {
 	return nil
 }
 
-func openURL(url string) (io.ReadCloser, error) {
+func (c *clientContext) openURL(url string) (io.ReadCloser, error) {
 	maxTries := 5
 	backoff := 1
 
@@ -753,11 +752,11 @@ func openURL(url string) (io.ReadCloser, error) {
 		}
 
 		if i == maxTries {
-			log.Printf("ERROR: [AWS] open [%s] (try %d/%d): received status: %s; giving up", url, i, maxTries, h.Status)
+			c.err("[AWS] open [%s] (try %d/%d): received status: %s; giving up", url, i, maxTries, h.Status)
 			return nil, fmt.Errorf("max tries reached")
 		}
 
-		log.Printf("INFO: [AWS] open [%s] (try %d/%d): received status: %s; will try again in %d seconds...", url, i, maxTries, h.Status, backoff)
+		c.info("[AWS] open [%s] (try %d/%d): received status: %s; will try again in %d seconds...", url, i, maxTries, h.Status, backoff)
 
 		time.Sleep(time.Duration(backoff) * time.Second)
 		backoff *= 2
@@ -775,7 +774,7 @@ func (c *clientContext) awsUploadImage(uploader *s3manager.Uploader, reqID, imag
 	if strings.HasPrefix(imageSource, "/") {
 		imageStream, err = os.Open(imageSource)
 	} else {
-		imageStream, err = openURL(imageSource)
+		imageStream, err = c.openURL(imageSource)
 	}
 
 	if err != nil {

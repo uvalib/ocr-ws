@@ -107,14 +107,14 @@ func (c *clientContext) reqInProgress(path string) (bool, string) {
 	c.info("[SQL] found existing workflowID: [%s] / runID: [%s]", req.AWSWorkflowID, req.AWSRunID)
 
 	// check if this is an open workflow
-	open, openErr := awsWorkflowIsOpen(req.AWSWorkflowID, req.AWSRunID)
+	open, openErr := c.awsWorkflowIsOpen(req.AWSWorkflowID, req.AWSRunID)
 	if openErr == nil && open == true {
 		c.info("[SQL] workflow execution is open; in progress")
 		return true, pct
 	}
 
 	// check if this is a closed workflow
-	closed, closedErr := awsWorkflowIsClosed(req.AWSWorkflowID, req.AWSRunID)
+	closed, closedErr := c.awsWorkflowIsClosed(req.AWSWorkflowID, req.AWSRunID)
 	if closedErr == nil && closed == true {
 		c.info("[SQL] workflow execution is closed; not in progress")
 		return false, zeroPct

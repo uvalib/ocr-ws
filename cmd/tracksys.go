@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -267,11 +266,11 @@ func textSnippet(text string) string {
 	return s[:padLen]
 }
 
-func tsPostText(pid, text string) error {
+func (c *clientContext) tsPostText(pid, text string) error {
 	// if url not set, just skip over this
 
 	if config.tsReadOnly.value == true {
-		log.Printf("INFO: SKIPPING TRACKSYS POST")
+		c.info("SKIPPING TRACKSYS POST")
 		return nil
 	}
 
@@ -283,25 +282,25 @@ func tsPostText(pid, text string) error {
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
-		log.Printf("ERROR: NewRequest() failed: %s", reqErr.Error())
+		c.err("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("failed to create new fulltext post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		log.Printf("ERROR: client.Do() failed: %s", resErr.Error())
+		c.err("client.Do() failed: %s", resErr.Error())
 		return errors.New("failed to receive fulltext post response")
 	}
 
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	log.Printf("INFO: [%s] posted ocr: [%s] <= [%s] (%d)", pid, buf, textSnippet(text), len(text))
+	c.info("[%s] posted ocr: [%s] <= [%s] (%d)", pid, buf, textSnippet(text), len(text))
 
 	return nil
 }
 
-func tsJobStatusCallback(api, status, message, started, finished string) error {
+func (c *clientContext) tsJobStatusCallback(api, status, message, started, finished string) error {
 	jobstatus := struct {
 		Status   string `json:"status,omitempty"`
 		Message  string `json:"message,omitempty"`
@@ -316,7 +315,7 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 
 	output, jsonErr := json.Marshal(jobstatus)
 	if jsonErr != nil {
-		log.Printf("ERROR: Failed to serialize callback json: [%s]", jsonErr.Error())
+		c.err("Failed to serialize callback json: [%s]", jsonErr.Error())
 		return errors.New("failed to serialze job status callback json")
 	}
 
@@ -328,20 +327,20 @@ func tsJobStatusCallback(api, status, message, started, finished string) error {
 
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
-		log.Printf("ERROR: NewRequest() failed: %s", reqErr.Error())
+		c.err("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("failed to create new job status post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		log.Printf("ERROR: client.Do() failed: %s", resErr.Error())
+		c.err("client.Do() failed: %s", resErr.Error())
 		return errors.New("failed to receive job status post response")
 	}
 
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	log.Printf("INFO: posted job status: [%s]; response: [%s]", string(output), buf)
+	c.info("posted job status: [%s]; response: [%s]", string(output), buf)
 
 	return nil
 }

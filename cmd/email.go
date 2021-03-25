@@ -2,27 +2,26 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"gopkg.in/gomail.v2"
 )
 
-func sendEmail(m *gomail.Message) {
+func (c *clientContext) sendEmail(m *gomail.Message) {
 	d := gomail.Dialer{Host: config.emailHost.value, Port: config.emailPort.value}
 
 	to := m.GetHeader("To")
 	subject := m.GetHeader("Subject")
 
 	if err := d.DialAndSend(m); err != nil {
-		log.Printf("ERROR: failed to send email to %s: [%s]", to, err.Error())
+		c.err("failed to send email to %s: [%s]", to, err.Error())
 	} else {
-		log.Printf("INFO: email sent to %s with subject %s", to, subject)
+		c.info("email sent to %s with subject %s", to, subject)
 	}
 }
 
-func emailResults(to, subject, body, attachment string) {
+func (c *clientContext) emailResults(to, subject, body, attachment string) {
 	if to == "" {
-		log.Printf("WARNING: missing email address")
+		c.warn("missing email address")
 		return
 	}
 
@@ -37,5 +36,5 @@ func emailResults(to, subject, body, attachment string) {
 		m.Attach(attachment)
 	}
 
-	sendEmail(m)
+	c.sendEmail(m)
 }

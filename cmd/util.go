@@ -139,7 +139,7 @@ func appendStringIfMissing(slice []string, str string) []string {
 func (c *clientContext) processEmails(workdir, subject, body, attachment string) {
 	if emails, err := c.reqGetEmails(workdir); err == nil {
 		for _, e := range emails {
-			emailResults(e, subject, body, attachment)
+			c.emailResults(e, subject, body, attachment)
 		}
 	} else {
 		c.err("error retrieving email addresses: [%s]", err.Error())
@@ -160,8 +160,8 @@ func (c *clientContext) processCallbacks(workdir, reqid, status, message string)
 	}
 
 	if callbacks, err := c.reqGetCallbacks(workdir); err == nil {
-		for _, c := range callbacks {
-			tsJobStatusCallback(c, status, message, req.Started, req.Finished)
+		for _, cb := range callbacks {
+			c.tsJobStatusCallback(cb, status, message, req.Started, req.Finished)
 		}
 	} else {
 		c.err("error retrieving callbacks: [%s]", err.Error())
@@ -227,7 +227,7 @@ func (c *clientContext) processOcrSuccess(res ocrResultsInfo) {
 
 		// post to tracksys?
 		if res.overwrite == true {
-			if err := tsPostText(p.pid, p.text); err != nil {
+			if err := c.tsPostText(p.pid, p.text); err != nil {
 				c.err("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
 			}
 		}
