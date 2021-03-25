@@ -3,64 +3,33 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-type ocrRequest struct {
-	pid      string
-	unit     string
-	email    string
-	callback string
-	force    string
-	lang     string
-}
-
-type ocrInfo struct {
-	req     ocrRequest // values from original request
-	ts      *tsPidInfo // values looked up in tracksys
-	subDir  string
-	workDir string
-	reqID   string
-}
-
 /**
  * Handle a request for OCR of page images
  */
-func ocrGenerateHandler(c *gin.Context) {
-	ocr := ocrInfo{}
-
-	// save fields from original request
-	ocr.req.pid = c.Param("pid")
-	ocr.req.unit = c.Query("unit")
-	ocr.req.email = c.Query("email")
-	ocr.req.callback = c.Query("callback")
-	ocr.req.force = c.Query("force")
-	ocr.req.lang = c.Query("lang")
-
-	// save info generated from the original request
-	ocr.subDir = ocr.req.pid
-	ocr.workDir = getWorkDir(ocr.subDir)
-	ocr.reqID = randomID()
+func ocrGenerateHandler(ctx *gin.Context) {
+	c := newClientContext(ctx)
 
 	// check if forcing ocr... bypasses all checks except pid existence (e.g. allows individual master_file ocr)
-	if b, err := strconv.ParseBool(ocr.req.force); err == nil && b == true {
-		ts, tsErr := tsGetPidInfo(ocr.req.pid, ocr.req.unit)
+	if b, err := strconv.ParseBool(c.req.force); err == nil && b == true {
+		ts, tsErr := c.tsGetPidInfo()
 
 		if tsErr != nil {
-			log.Printf("Tracksys API error: [%s]", tsErr.Error())
-			c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
+			c.err("Tracksys API error: [%s]", tsErr.Error())
+			c.respondString(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 			return
 		}
 
-		ocr.ts = ts
+		c.ocr.ts = ts
 
-		c.String(http.StatusOK, "OK")
+		c.respondString(http.StatusOK, "OK")
 
-		go generateOcr(ocr)
+		go c.generateOcr()
 
 		return
 	}
@@ -68,85 +37,85 @@ func ocrGenerateHandler(c *gin.Context) {
 	// normal request:
 
 	// see if request is already in progress
-	inProgress, _ := reqInProgress(ocr.workDir)
+	inProgress, _ := c.reqInProgress(c.ocr.workDir)
 	if inProgress == true {
 		// request is in progress; don't start another request, just add email/callback to completion notification list
-		log.Printf("Request already in progress; adding email/callback to completion notification list")
-		reqAddEmail(ocr.workDir, ocr.req.email)
-		reqAddCallback(ocr.workDir, ocr.req.callback)
-		c.String(http.StatusOK, "OK")
+		c.info("Request already in progress; adding email/callback to completion notification list")
+		c.reqAddEmail(c.ocr.workDir, c.req.email)
+		c.reqAddCallback(c.ocr.workDir, c.req.callback)
+		c.respondString(http.StatusOK, "OK")
 		return
 	}
 
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
+	ts, tsErr := c.tsGetMetadataPidInfo()
 
 	if tsErr != nil {
-		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
+		c.err("Tracksys API error: [%s]", tsErr.Error())
+		c.respondString(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
-	ocr.ts = ts
+	c.ocr.ts = ts
 
 	// check if ocr/transcription already exists; if so, just email now
 
 	if ts.Pid.HasOcr == true {
-		log.Printf("OCR/transcription already exists; emailing now")
+		c.info("OCR/transcription already exists; emailing now")
 
-		reqInitialize(ocr.workDir, ocr.reqID)
-		reqUpdateCatalogKey(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
-		reqUpdateCallNumber(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CallNumber)
-		reqAddEmail(ocr.workDir, ocr.req.email)
-		reqAddCallback(ocr.workDir, ocr.req.callback)
+		c.reqInitialize(c.ocr.workDir, c.ocr.reqID)
+		c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CatalogKey)
+		c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CallNumber)
+		c.reqAddEmail(c.ocr.workDir, c.req.email)
+		c.reqAddCallback(c.ocr.workDir, c.req.callback)
 
 		res := ocrResultsInfo{}
 
-		res.pid = ocr.req.pid
-		res.reqid = ocr.reqID
-		res.workDir = ocr.workDir
+		res.pid = c.req.pid
+		res.reqid = c.ocr.reqID
+		res.workDir = c.ocr.workDir
 		res.overwrite = false
 
-		for _, p := range ocr.ts.Pages {
-			txt, txtErr := tsGetText(p.Pid)
+		for _, p := range c.ocr.ts.Pages {
+			txt, txtErr := c.tsGetText(p.Pid)
 			if txtErr != nil {
-				log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+				c.err("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 				res.details = "Error encountered while retrieving text for one or more pages"
-				processOcrFailure(res)
-				c.String(http.StatusInternalServerError, "ERROR: Could not retrieve page text")
+				c.processOcrFailure(res)
+				c.respondString(http.StatusInternalServerError, "ERROR: Could not retrieve page text")
 				return
 			}
 
 			res.pages = append(res.pages, ocrPidInfo{pid: p.Pid, text: txt})
 		}
 
-		processOcrSuccess(res)
+		c.processOcrSuccess(res)
 
-		c.String(http.StatusOK, "OK")
+		c.respondString(http.StatusOK, "OK")
 		return
 	}
 
 	// check if this is ocr-able
 
-	if ocr.ts.isOcrable == false {
-		log.Printf("Cannot OCR: [%s]", ocr.ts.Pid.OcrHint)
-		c.String(http.StatusBadRequest, "ERROR: PID is not in a format conducive to OCR")
+	if c.ocr.ts.isOcrable == false {
+		c.err("Cannot OCR: [%s]", c.ocr.ts.Pid.OcrHint)
+		c.respondString(http.StatusBadRequest, "ERROR: PID is not in a format conducive to OCR")
 		return
 	}
 
 	// perform ocr
 
-	c.String(http.StatusOK, "OK")
+	c.respondString(http.StatusOK, "OK")
 
-	go generateOcr(ocr)
+	go c.generateOcr()
 }
 
-func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
+func (c *clientContext) getTextForMetadataPid() (string, error) {
 	var pages []string
 
-	for _, p := range ts.Pages {
-		pageText, txtErr := tsGetText(p.Pid)
+	for _, p := range c.ocr.ts.Pages {
+		pageText, txtErr := c.tsGetText(p.Pid)
 		if txtErr != nil {
-			log.Printf("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
+			c.err("[%s] tsGetText() error: [%s]", p.Pid, txtErr.Error())
 			return "", errors.New("could not retrieve page text")
 		}
 
@@ -158,47 +127,37 @@ func getTextForMetadataPid(ts *tsPidInfo) (string, error) {
 	return ocrText, nil
 }
 
-func ocrTextHandler(c *gin.Context) {
-	ocr := ocrInfo{}
+func ocrTextHandler(ctx *gin.Context) {
+	c := newClientContext(ctx)
 
-	// save fields from original request
-	ocr.req.pid = c.Param("pid")
-	ocr.req.unit = c.Query("unit")
-
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
+	ts, tsErr := c.tsGetMetadataPidInfo()
 
 	if tsErr != nil {
-		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
+		c.err("Tracksys API error: [%s]", tsErr.Error())
+		c.respondString(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
-	ocrText, txtErr := getTextForMetadataPid(ts)
+	c.ocr.ts = ts
+
+	ocrText, txtErr := c.getTextForMetadataPid()
 
 	if txtErr != nil {
-		c.String(http.StatusInternalServerError, fmt.Sprintf("ERROR: %s", txtErr.Error()))
+		c.respondString(http.StatusInternalServerError, fmt.Sprintf("ERROR: %s", txtErr.Error()))
 		return
 	}
 
-	c.String(http.StatusOK, ocrText)
+	c.respondString(http.StatusOK, ocrText)
 }
 
-func ocrStatusHandler(c *gin.Context) {
-	ocr := ocrInfo{}
+func ocrStatusHandler(ctx *gin.Context) {
+	c := newClientContext(ctx)
 
-	// save fields from original request
-	ocr.req.pid = c.Param("pid")
-	ocr.req.unit = c.Query("unit")
-
-	// save info generated from the original request
-	ocr.subDir = ocr.req.pid
-	ocr.workDir = getWorkDir(ocr.subDir)
-
-	ts, tsErr := tsGetMetadataPidInfo(ocr.req.pid, ocr.req.unit)
+	ts, tsErr := c.tsGetMetadataPidInfo()
 
 	if tsErr != nil {
-		log.Printf("Tracksys API error: [%s]", tsErr.Error())
-		c.String(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
+		c.err("Tracksys API error: [%s]", tsErr.Error())
+		c.respondString(http.StatusNotFound, fmt.Sprintf("ERROR: Could not retrieve PID info: [%s]", tsErr.Error()))
 		return
 	}
 
@@ -208,38 +167,40 @@ func ocrStatusHandler(c *gin.Context) {
 	status["has_transcription"] = ts.Pid.HasTranscription
 	status["is_ocr_candidate"] = ts.isOcrable
 
-	inProgress, pct := reqInProgress(ocr.workDir)
-	if inProgress == true {
+	if inProgress, pct := c.reqInProgress(c.ocr.workDir); inProgress == true {
+		c.info("request in progress: %s", pct)
 		status["ocr_progress"] = pct
+	} else {
+		c.info("no request in progress")
 	}
 
-	c.JSON(http.StatusOK, status)
+	c.respondJSON(http.StatusOK, status)
 }
 
-func generateOcr(ocr ocrInfo) {
+func (c *clientContext) generateOcr() {
 	// check for language override
-	if ocr.req.lang != "" {
-		ocr.ts.Pid.OcrLanguageHint = ocr.req.lang
+	if c.req.lang != "" {
+		c.ocr.ts.Pid.OcrLanguageHint = c.req.lang
 	}
 
-	reqInitialize(ocr.workDir, ocr.reqID)
-	reqUpdateStarted(ocr.workDir, ocr.reqID)
-	reqUpdateImagesTotal(ocr.workDir, ocr.reqID, len(ocr.ts.Pages))
-	reqUpdateCatalogKey(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CatalogKey)
-	reqUpdateCallNumber(ocr.workDir, ocr.reqID, ocr.ts.Metadata.CallNumber)
-	reqAddEmail(ocr.workDir, ocr.req.email)
-	reqAddCallback(ocr.workDir, ocr.req.callback)
+	c.reqInitialize(c.ocr.workDir, c.ocr.reqID)
+	c.reqUpdateStarted(c.ocr.workDir, c.ocr.reqID)
+	c.reqUpdateImagesTotal(c.ocr.workDir, c.ocr.reqID, len(c.ocr.ts.Pages))
+	c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CatalogKey)
+	c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CallNumber)
+	c.reqAddEmail(c.ocr.workDir, c.req.email)
+	c.reqAddCallback(c.ocr.workDir, c.req.callback)
 
-	if err := awsGenerateOcr(ocr); err != nil {
-		log.Printf("generateOcr() failed: [%s]", err.Error())
+	if err := c.awsGenerateOcr(); err != nil {
+		c.err("generateOcr() failed: [%s]", err.Error())
 
 		res := ocrResultsInfo{}
 
-		res.pid = ocr.req.pid
-		res.reqid = ocr.reqID
-		res.workDir = ocr.workDir
+		res.pid = c.req.pid
+		res.reqid = c.ocr.reqID
+		res.workDir = c.ocr.workDir
 		res.details = "Error encountered while starting the OCR process"
 
-		processOcrFailure(res)
+		c.processOcrFailure(res)
 	}
 }

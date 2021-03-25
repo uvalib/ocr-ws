@@ -14,15 +14,15 @@ func sendEmail(m *gomail.Message) {
 	subject := m.GetHeader("Subject")
 
 	if err := d.DialAndSend(m); err != nil {
-		log.Printf("Failed to send email to %s: [%s]", to, err.Error())
+		log.Printf("ERROR: failed to send email to %s: [%s]", to, err.Error())
 	} else {
-		log.Printf("Email sent to %s with subject %s", to, subject)
+		log.Printf("INFO: email sent to %s with subject %s", to, subject)
 	}
 }
 
 func emailResults(to, subject, body, attachment string) {
 	if to == "" {
-		log.Printf("missing email address")
+		log.Printf("WARNING: missing email address")
 		return
 	}
 

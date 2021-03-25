@@ -101,7 +101,7 @@ func getIntEnv(optEnv string) int {
 
 func ensureConfigStringSet(item *configStringItem) bool {
 	if item.value == "" {
-		log.Printf("[ERROR] %s is not set, use %s variable or -%s flag", item.desc, item.env, item.flag)
+		log.Printf("ERROR: [CONFIG] %s is not set, use %s variable or -%s flag", item.desc, item.env, item.flag)
 		return false
 	}
 	return true

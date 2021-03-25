@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -16,6 +17,7 @@ const version = "1.0.0"
 
 var sess *session.Session
 var client *http.Client
+var randomSource *rand.Rand
 
 /**
  * Main entry point for the web service
@@ -29,13 +31,15 @@ func main() {
 	// load version details
 	initVersion()
 
-	// initialize http client
+	// initialize http client and random source
 	client = &http.Client{Timeout: 10 * time.Second}
+	randomSource = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// initialize AWS session
 	if config.awsDisabled.value == false {
 		sess = session.Must(session.NewSession())
-		go awsPollForDecisionTasks()
+		c := newBackgroundContext()
+		go c.awsPollForDecisionTasks()
 	}
 
 	// Set routes and start server
@@ -84,7 +88,7 @@ func ignoreHandler(c *gin.Context) {
 func versionHandler(c *gin.Context) {
 	output, jsonErr := json.Marshal(versionDetails)
 	if jsonErr != nil {
-		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		log.Printf("ERROR: Failed to serialize output: [%s]", jsonErr.Error())
 		c.String(http.StatusInternalServerError, "")
 		return
 	}
@@ -98,7 +102,7 @@ func healthCheckHandler(c *gin.Context) {
 
 	output, jsonErr := json.Marshal(health)
 	if jsonErr != nil {
-		log.Printf("Failed to serialize output: [%s]", jsonErr.Error())
+		log.Printf("ERROR: Failed to serialize output: [%s]", jsonErr.Error())
 		c.String(http.StatusInternalServerError, "")
 		return
 	}

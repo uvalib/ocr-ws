@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"path"
@@ -105,11 +104,11 @@ func getIIIFUrl(pid string) string {
 	return url
 }
 
-func writeFileWithContents(filename, contents string) error {
+func (c *clientContext) writeFileWithContents(filename, contents string) error {
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0664)
 
 	if err != nil {
-		log.Printf("Unable to open file: %s", err.Error())
+		c.err("Unable to open file: %s", err.Error())
 		return fmt.Errorf("unable to open ocr file: [%s]", filename)
 	}
 
@@ -118,7 +117,7 @@ func writeFileWithContents(filename, contents string) error {
 	w := bufio.NewWriter(f)
 
 	if _, err = fmt.Fprintf(w, "%s", contents); err != nil {
-		log.Printf("Unable to write file: %s", err.Error())
+		c.err("Unable to write file: %s", err.Error())
 		return fmt.Errorf("unable to write ocr file: [%s]", filename)
 	}
 
@@ -137,20 +136,20 @@ func appendStringIfMissing(slice []string, str string) []string {
 	return append(slice, str)
 }
 
-func processEmails(workdir, subject, body, attachment string) {
-	if emails, err := reqGetEmails(workdir); err == nil {
+func (c *clientContext) processEmails(workdir, subject, body, attachment string) {
+	if emails, err := c.reqGetEmails(workdir); err == nil {
 		for _, e := range emails {
 			emailResults(e, subject, body, attachment)
 		}
 	} else {
-		log.Printf("error retrieving email addresses: [%s]", err.Error())
+		c.err("error retrieving email addresses: [%s]", err.Error())
 	}
 }
 
-func processCallbacks(workdir, reqid, status, message string) {
-	req, reqErr := reqGetRequestInfo(workdir, reqid)
+func (c *clientContext) processCallbacks(workdir, reqid, status, message string) {
+	req, reqErr := c.reqGetRequestInfo(workdir, reqid)
 	if reqErr != nil {
-		log.Printf("could not get times; making some up.  error: [%s]", reqErr.Error())
+		c.warn("could not get times; making some up.  error: [%s]", reqErr.Error())
 
 		now := time.Now().Unix()
 		then := now - 60
@@ -160,18 +159,18 @@ func processCallbacks(workdir, reqid, status, message string) {
 		req.Finished = tsTimestamp(fmt.Sprintf("%d", now))
 	}
 
-	if callbacks, err := reqGetCallbacks(workdir); err == nil {
+	if callbacks, err := c.reqGetCallbacks(workdir); err == nil {
 		for _, c := range callbacks {
 			tsJobStatusCallback(c, status, message, req.Started, req.Finished)
 		}
 	} else {
-		log.Printf("error retrieving callbacks: [%s]", err.Error())
+		c.err("error retrieving callbacks: [%s]", err.Error())
 	}
 }
 
-func getVirgoURL(res ocrResultsInfo) string {
+func (c *clientContext) getVirgoURL(res ocrResultsInfo) string {
 	v4url := "https://search.lib.virginia.edu"
-	req, reqErr := reqGetRequestInfo(res.workDir, res.reqid)
+	req, reqErr := c.reqGetRequestInfo(res.workDir, res.reqid)
 	if reqErr != nil || req.CatalogKey == "" {
 		v4url += fmt.Sprintf("/?q=keyword:{%s}", res.pid)
 	} else {
@@ -217,10 +216,10 @@ University of Virginia Library`, message, config.emailAddress.value)
 	return body
 }
 
-func processOcrSuccess(res ocrResultsInfo) {
-	log.Printf("[%s] processing and posting successful OCR", res.pid)
+func (c *clientContext) processOcrSuccess(res ocrResultsInfo) {
+	c.info("[%s] processing and posting successful OCR", res.pid)
 
-	reqUpdateFinished(res.workDir, res.reqid)
+	c.reqUpdateFinished(res.workDir, res.reqid)
 
 	var pages []string
 	for _, p := range res.pages {
@@ -229,13 +228,13 @@ func processOcrSuccess(res ocrResultsInfo) {
 		// post to tracksys?
 		if res.overwrite == true {
 			if err := tsPostText(p.pid, p.text); err != nil {
-				log.Printf("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
+				c.err("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
 			}
 		}
 	}
 
 	ocrBaseName := res.pid
-	req, reqErr := reqGetRequestInfo(res.workDir, res.reqid)
+	req, reqErr := c.reqGetRequestInfo(res.workDir, res.reqid)
 	if reqErr == nil && req.CallNumber != "" {
 		ocrBaseName = req.CallNumber
 	}
@@ -244,10 +243,10 @@ func processOcrSuccess(res ocrResultsInfo) {
 	ocrFile := fmt.Sprintf("%s/%s.txt", res.workDir, ocrBaseName)
 
 	// save to all file
-	if err := writeFileWithContents(ocrFile, ocrText); err != nil {
-		log.Printf("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
+	if err := c.writeFileWithContents(ocrFile, ocrText); err != nil {
+		c.err("[%s] error creating results attachment file: [%s]", res.pid, err.Error())
 		res.details = "OCR generation process finalization failed"
-		processOcrFailure(res)
+		c.processOcrFailure(res)
 		return
 	}
 
@@ -255,33 +254,33 @@ func processOcrSuccess(res ocrResultsInfo) {
 
 	message := "The OCR document you requested is attached."
 	message += "\n\n"
-	message += "The file is also now discoverable in Virgo, along with citation and rights information: " + getVirgoURL(res)
+	message += "The file is also now discoverable in Virgo, along with citation and rights information: " + c.getVirgoURL(res)
 	message += "\n\n"
 	message += "Please note that it is your responsibility to determine appropriate rights and usage for Library material."
 
 	body := ocrEmailBody(message)
 
-	processEmails(res.workDir, subject, body, ocrFile)
-	processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
+	c.processEmails(res.workDir, subject, body, ocrFile)
+	c.processCallbacks(res.workDir, res.reqid, "success", "OCR completed successfully")
 
 	os.RemoveAll(res.workDir)
 }
 
-func processOcrFailure(res ocrResultsInfo) {
-	log.Printf("[%s] processing failed OCR", res.pid)
+func (c *clientContext) processOcrFailure(res ocrResultsInfo) {
+	c.info("[%s] processing failed OCR", res.pid)
 
-	reqUpdateFinished(res.workDir, res.reqid)
+	c.reqUpdateFinished(res.workDir, res.reqid)
 
 	subject := "Your OCR request cannot be completed"
 
 	message := "Unfortunately, the OCR document you requested has failed to generate. This may be a result of a technical issue or a problem with the original document."
 	message += "\n\n"
-	message += getVirgoURL(res)
+	message += c.getVirgoURL(res)
 
 	body := ocrEmailBody(message)
 
-	processEmails(res.workDir, subject, body, "")
-	processCallbacks(res.workDir, res.reqid, "fail", res.details)
+	c.processEmails(res.workDir, subject, body, "")
+	c.processCallbacks(res.workDir, res.reqid, "fail", res.details)
 
 	os.RemoveAll(res.workDir)
 }
