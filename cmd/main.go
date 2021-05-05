@@ -77,7 +77,7 @@ func rootHandler(c *gin.Context) {
 
 // Handle a request for /robots.txt
 func robotsHandler(c *gin.Context) {
-	c.String(http.StatusOK, "User-agent: * Disallow: /")
+	c.String(http.StatusOK, "User-agent: *\nDisallow: /\n")
 }
 
 // Handle a request for /favicon.ico
