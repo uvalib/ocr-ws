@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 
 	"gopkg.in/gomail.v2"
@@ -8,6 +9,7 @@ import (
 
 func (c *clientContext) sendEmail(m *gomail.Message) {
 	d := gomail.Dialer{Host: config.emailHost.value, Port: config.emailPort.value}
+	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 
 	to := m.GetHeader("To")
 	subject := m.GetHeader("Subject")
