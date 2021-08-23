@@ -222,8 +222,7 @@ func (c *clientContext) tsGetMetadataPidInfo() (*tsPidInfo, error) {
 }
 
 func (c *clientContext) tsGetText(pid string) (string, error) {
-	url := getTsURL("/api/fulltext", pid, map[string]string{"type": "transcription"})
-
+	url := fmt.Sprintf("%s/api/pid/%s/text", config.tsAPIHost.value, pid)
 	req, reqErr := http.NewRequest("GET", url, nil)
 	if reqErr != nil {
 		c.err("NewRequest() failed: %s", reqErr.Error())
@@ -276,10 +275,10 @@ func (c *clientContext) tsPostText(pid, text string) error {
 
 	form := url.Values{
 		"text": {text},
+		"key": {config.tsAPIKey.value}
 	}
 
-	url := getTsURL("/api/fulltext", pid+"/ocr", nil)
-
+	url := fmt.Sprintf("%s/api/pid/%s/ocr", config.tsAPIHost.value, pid)
 	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
 	if reqErr != nil {
 		c.err("NewRequest() failed: %s", reqErr.Error())
