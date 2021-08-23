@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -277,13 +278,16 @@ func (c *clientContext) tsPostText(pid, text string) error {
 		"text": {text},
 		"key":  {config.tsAPIKey.value},
 	}
+	encodedForm := form.Encode()
 
 	url := fmt.Sprintf("%s/api/pid/%s/ocr", config.tsAPIHost.value, pid)
-	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	req, reqErr := http.NewRequest("POST", url, strings.NewReader(encodedForm))
 	if reqErr != nil {
 		c.err("NewRequest() failed: %s", reqErr.Error())
 		return errors.New("failed to create new fulltext post request")
 	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Length", strconv.Itoa(len(encodedForm)))
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
