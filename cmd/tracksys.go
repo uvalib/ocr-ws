@@ -275,7 +275,7 @@ func (c *clientContext) tsPostText(pid, text string) error {
 
 	form := url.Values{
 		"text": {text},
-		"key": {config.tsAPIKey.value}
+		"key":  {config.tsAPIKey.value},
 	}
 
 	url := fmt.Sprintf("%s/api/pid/%s/ocr", config.tsAPIHost.value, pid)
@@ -299,7 +299,7 @@ func (c *clientContext) tsPostText(pid, text string) error {
 	return nil
 }
 
-func (c *clientContext) tsJobStatusCallback(api, status, message, started, finished string) error {
+func (c *clientContext) tsJobStatusCallback(apiURL, status, message, started, finished string) error {
 	jobstatus := struct {
 		Status   string `json:"status,omitempty"`
 		Message  string `json:"message,omitempty"`
@@ -322,24 +322,22 @@ func (c *clientContext) tsJobStatusCallback(api, status, message, started, finis
 		"json": {string(output)},
 	}
 
-	url := getTsURL(api, "", nil)
-
-	req, reqErr := http.NewRequest("POST", url, strings.NewReader(form.Encode()))
+	req, reqErr := http.NewRequest("POST", apiURL, strings.NewReader(form.Encode()))
 	if reqErr != nil {
-		c.err("NewRequest() failed: %s", reqErr.Error())
+		c.err("NewRequest() %s failed: %s", apiURL, reqErr.Error())
 		return errors.New("failed to create new job status post request")
 	}
 
 	res, resErr := client.Do(req)
 	if resErr != nil {
-		c.err("client.Do() failed: %s", resErr.Error())
+		c.err("client.Do() %s failed: %s", apiURL, resErr.Error())
 		return errors.New("failed to receive job status post response")
 	}
 
 	defer res.Body.Close()
 
 	buf, _ := ioutil.ReadAll(res.Body)
-	c.info("posted job status: [%s]; response: [%s]", string(output), buf)
+	c.info("posted job status: [%s]; to: [%s]; response: [%s]", string(output), apiURL, buf)
 
 	return nil
 }
