@@ -202,6 +202,7 @@ func getConfigValues() {
 	log.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
 	log.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
 	log.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
+	log.Printf("[CONFIG] tsAPIKey              = [%s]", maskValue(config.tsAPIKey.value))
 	log.Printf("[CONFIG] tsReadOnly            = [%v]", config.tsReadOnly.value)
 	log.Printf("[CONFIG] emailName             = [%s]", config.emailName.value)
 	log.Printf("[CONFIG] emailAddress          = [%s]", config.emailAddress.value)
