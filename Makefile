@@ -122,14 +122,20 @@ clean:
 	echo "[CLEAN] $(PACKAGE)" ; \
 	(cd "$(SRCDIR)" && $(GOCLN))
 
+tidy:
+	@ \
+	echo "[MOD] $(GOMOD) tidy" ; \
+	$(GOMOD) tidy
+
+verify:
+	@ \
+	echo "[MOD] $(GOMOD) verify" ; \
+	$(GOMOD) verify
+
 dep:
 	@ \
-	echo "[DEP] GOPROXY=$(GOPROXY) $(GOGET)" ; \
-	GOPROXY=$(GOPROXY) $(GOGET) -u ./$(SRCDIR)/... ; \
-	echo "[DEP] $(GOMOD) tidy" ; \
-	$(GOMOD) tidy ; \
-	echo "[DEP] $(GOMOD) verify" ; \
-	$(GOMOD) verify
+	echo "[MOD] GOPROXY=$(GOPROXY) $(GOGET)" ; \
+	GOPROXY=$(GOPROXY) $(GOGET) -u ./$(SRCDIR)/...
 
 DEP: goproxy-direct dep
 
@@ -150,4 +156,4 @@ check-shadow:
 
 check: check-shadow check-static
 
-sure: check dep fmt vet lint
+sure: check tidy verify fmt vet lint
