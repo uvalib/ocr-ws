@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -322,16 +323,13 @@ func (c *clientContext) tsJobStatusCallback(apiURL, status, message, started, fi
 		return errors.New("failed to serialze job status callback json")
 	}
 
-	form := url.Values{
-		"json": {string(output)},
-	}
-
-	req, reqErr := http.NewRequest("POST", apiURL, strings.NewReader(form.Encode()))
+	req, reqErr := http.NewRequest("POST", apiURL, bytes.NewBuffer(b))
 	if reqErr != nil {
 		c.err("NewRequest() %s failed: %s", apiURL, reqErr.Error())
 		return errors.New("failed to create new job status post request")
 	}
 
+	req.Header.Add("Content-type", "application/json")
 	res, resErr := client.Do(req)
 	if resErr != nil {
 		c.err("client.Do() %s failed: %s", apiURL, resErr.Error())
