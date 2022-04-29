@@ -323,7 +323,7 @@ func (c *clientContext) tsJobStatusCallback(apiURL, status, message, started, fi
 		return errors.New("failed to serialze job status callback json")
 	}
 
-	req, reqErr := http.NewRequest("POST", apiURL, bytes.NewBuffer(b))
+	req, reqErr := http.NewRequest("POST", apiURL, bytes.NewBuffer(output))
 	if reqErr != nil {
 		c.err("NewRequest() %s failed: %s", apiURL, reqErr.Error())
 		return errors.New("failed to create new job status post request")
