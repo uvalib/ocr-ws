@@ -1,7 +1,7 @@
 #
 # build the target application
 #
-FROM public.ecr.aws/docker/library/golang:1.19.1-alpine3.16 as builder
+FROM public.ecr.aws/docker/library/golang:1.19.3-alpine3.17 as builder
 RUN apk update && apk upgrade && apk add make gcc g++
 
 WORKDIR /build
@@ -13,7 +13,7 @@ RUN make rebuild-docker GIT_COMMIT="$GIT_COMMIT"
 #
 # build the target container
 #
-FROM public.ecr.aws/docker/library/alpine:3.16
+FROM public.ecr.aws/docker/library/alpine:3.17
 
 # update the packages
 RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl && rm -rf /var/cache/apk/*
