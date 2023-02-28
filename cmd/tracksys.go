@@ -13,11 +13,6 @@ import (
 	"time"
 )
 
-type tsMetadataInfo struct {
-	CatalogKey string `json:"catalogKey,omitempty"`
-	CallNumber string `json:"callNumber,omitempty"`
-}
-
 // the line between metadata/masterfile fields is getting blurry; just lump them together
 type tsGenericPidInfo struct {
 	ID               int    `json:"id,omitempty"`
@@ -31,13 +26,14 @@ type tsGenericPidInfo struct {
 	OcrLanguageHint  string `json:"ocr_language_hint,omitempty"`
 	HasOcr           bool   `json:"has_ocr,omitempty"`
 	HasTranscription bool   `json:"has_transcription,omitempty"`
+	CatalogKey       string `json:"catalog_key,omitempty"`
+	CallNumber       string `json:"call_number,omitempty"`
 	imageSource      string
 	remoteName       string
 }
 
 // holds metadata pid/page info
 type tsPidInfo struct {
-	Metadata  tsMetadataInfo
 	Pid       tsGenericPidInfo
 	Pages     []tsGenericPidInfo
 	isOcrable bool
@@ -97,39 +93,6 @@ func (c *clientContext) tsGetPagesFromManifest() ([]tsGenericPidInfo, error) {
 	return tsPages, nil
 }
 
-func (c *clientContext) tsGetMetadataInfo() (tsMetadataInfo, error) {
-	url := getTsURL("/api/metadata", c.req.pid, map[string]string{"unit": c.req.unit, "type": "brief"})
-
-	var meta tsMetadataInfo
-
-	req, reqErr := http.NewRequest("GET", url, nil)
-	if reqErr != nil {
-		c.err("NewRequest() failed: %s", reqErr.Error())
-		return meta, errors.New("failed to create new pid request")
-	}
-
-	res, resErr := client.Do(req)
-	if resErr != nil {
-		c.err("client.Do() failed: %s", resErr.Error())
-		return meta, errors.New("failed to receive pid response")
-	}
-
-	defer res.Body.Close()
-
-	// parse json from body
-
-	buf, _ := ioutil.ReadAll(res.Body)
-	if jErr := json.Unmarshal(buf, &meta); jErr != nil {
-		c.err("Unmarshal() failed: %s", jErr.Error())
-		return meta, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
-	}
-
-	c.info("CatalogKey      : [%s]", meta.CatalogKey)
-	c.info("CallNumber      : [%s]", meta.CallNumber)
-
-	return meta, nil
-}
-
 func (c *clientContext) tsGetPidInfo() (*tsPidInfo, error) {
 	url := getTsURL("/api/pid", c.req.pid, nil)
 
@@ -155,12 +118,6 @@ func (c *clientContext) tsGetPidInfo() (*tsPidInfo, error) {
 	if jErr := json.Unmarshal(buf, &ts.Pid); jErr != nil {
 		c.err("Unmarshal() failed: %s", jErr.Error())
 		return nil, fmt.Errorf("failed to unmarshal pid response: [%s]", buf)
-	}
-
-	if meta, err := c.tsGetMetadataInfo(); err != nil {
-		c.err("failed to get metadata info: %s", err.Error())
-	} else {
-		ts.Metadata = meta
 	}
 
 	c.info("Type            : [%s]", ts.Pid.Type)

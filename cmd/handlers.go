@@ -63,8 +63,8 @@ func ocrGenerateHandler(ctx *gin.Context) {
 		c.info("OCR/transcription already exists; emailing now")
 
 		c.reqInitialize(c.ocr.workDir, c.ocr.reqID)
-		c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CatalogKey)
-		c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CallNumber)
+		c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Pid.CatalogKey)
+		c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Pid.CallNumber)
 		c.reqAddEmail(c.ocr.workDir, c.req.email)
 		c.reqAddCallback(c.ocr.workDir, c.req.callback)
 
@@ -186,8 +186,8 @@ func (c *clientContext) generateOcr() {
 	c.reqInitialize(c.ocr.workDir, c.ocr.reqID)
 	c.reqUpdateStarted(c.ocr.workDir, c.ocr.reqID)
 	c.reqUpdateImagesTotal(c.ocr.workDir, c.ocr.reqID, len(c.ocr.ts.Pages))
-	c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CatalogKey)
-	c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Metadata.CallNumber)
+	c.reqUpdateCatalogKey(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Pid.CatalogKey)
+	c.reqUpdateCallNumber(c.ocr.workDir, c.ocr.reqID, c.ocr.ts.Pid.CallNumber)
 	c.reqAddEmail(c.ocr.workDir, c.req.email)
 	c.reqAddCallback(c.ocr.workDir, c.req.callback)
 
