@@ -126,8 +126,16 @@ func (c *clientContext) reqInProgress(path string) (bool, string) {
 }
 
 func (c *clientContext) reqInitialize(path, reqid string) error {
-	os.RemoveAll(path)
-	os.MkdirAll(path, 0775)
+	c.info("[SQL] request path: [%s]", path)
+
+	if err := os.RemoveAll(path); err != nil {
+		c.err("[SQL] failed to remove existing request subdirectory; continuing: [%s]", err.Error())
+	}
+
+	if err := os.MkdirAll(path, 0775); err != nil {
+		c.err("[SQL] failed to create request subdirectory: [%s]", err.Error())
+		return errors.New("failed to initialize request database")
+	}
 
 	// open database
 	db, err := c.reqOpenDatabase(path)

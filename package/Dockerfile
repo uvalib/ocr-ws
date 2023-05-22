@@ -30,8 +30,9 @@ ENV APP_HOME /ocr-ws
 WORKDIR $APP_HOME
 
 # Create necessary directories
-RUN mkdir -p $APP_HOME/bin
-RUN chown -R webservice $APP_HOME && chgrp -R webservice $APP_HOME
+RUN mkdir -p $APP_HOME/bin $APP_HOME/mnt/storage
+RUN chown -R webservice:webservice $APP_HOME
+RUN chmod -R 775 $APP_HOME
 
 # port and run command
 EXPOSE 8088
@@ -43,7 +44,7 @@ COPY package/data/container_bash_profile /home/webservice/.profile
 COPY --from=builder /build/bin/ocr-ws.linux $APP_HOME/bin/ocr-ws
 
 # Ensure permissions are correct
-RUN chown webservice:webservice /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws && chmod 755 /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws
+RUN chown webservice:webservice /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws && chmod 775 /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/ocr-ws
 
 # Add the build tag
 ARG BUILD_TAG
