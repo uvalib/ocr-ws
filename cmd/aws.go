@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -206,7 +210,7 @@ func (c *clientContext) awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 
 		// extract the original input string containing pids that were processed
 		if info.input == "" && t == "WorkflowExecutionStarted" {
-			info.input = *e.WorkflowExecutionStartedEventAttributes.Input
+			info.input = c.decodeWorkflowInput(*e.WorkflowExecutionStartedEventAttributes.Input)
 			json.Unmarshal([]byte(info.input), &info.req)
 			pages := []ocrPageInfo{}
 			for _, p := range info.req.Pages {
@@ -377,7 +381,7 @@ func (c *clientContext) awsHandleDecisionTask(svc *swf.SWF, info decisionInfo) {
 			// decisions(s): ???
 			if t == "WorkflowExecutionSignaled" {
 				a := e.WorkflowExecutionSignaledEventAttributes
-				c.info("[AWS] [%s] workflow execution signaled (%s) - (%s)", info.workflowID, *a.SignalName, *a.Input)
+				c.info("[AWS] [%s] workflow execution signaled (%s) - (%s)", info.workflowID, *a.SignalName, c.decodeWorkflowInput(*a.Input))
 				continue EventsProcessingLoop
 			}
 
@@ -715,7 +719,7 @@ func (c *clientContext) awsSubmitWorkflow(req workflowRequest) error {
 		SetChildPolicy("TERMINATE").
 		SetExecutionStartToCloseTimeout(config.awsSwfWorkflowTimeout.value).
 		SetTaskStartToCloseTimeout(config.awsSwfDecisionTimeout.value).
-		SetInput(string(input))
+		SetInput(c.encodeWorkflowInput(string(input)))
 
 	res, startErr := svc.StartWorkflowExecution(startParams)
 
@@ -898,4 +902,63 @@ func (c *clientContext) awsGenerateOcr() error {
 	}
 
 	return nil
+}
+
+func (c *clientContext) encodeWorkflowInput(input string) string {
+	// attempt to encode input as a base64-encoded gzipped string.
+	// if that fails, just return the original input
+
+	//c.info("encoding (%5d) : [%s]", len(input), input)
+
+	var buf bytes.Buffer
+
+	gzEnc := gzip.NewWriter(&buf)
+	if _, gzErr := gzEnc.Write([]byte(input)); gzErr != nil {
+		c.warn("encode: gzip write error: %s", gzErr.Error())
+		return input
+	}
+
+	if gzErr := gzEnc.Close(); gzErr != nil {
+		c.warn("encode: gzip close error: %s", gzErr.Error())
+		return input
+	}
+
+	enc := base64.StdEncoding.EncodeToString([]byte(buf.String()))
+
+	//c.info("encoded (%5d) : [%s]", len(enc), enc)
+
+	c.info("encode: compressed input from %d bytes to %d bytes", len(input), len(enc))
+
+	return enc
+}
+
+func (c *clientContext) decodeWorkflowInput(input string) string {
+	// attempt to decode input as a base64-encoded gzipped string.
+	// if that fails, just return the original input
+
+	//c.info("decoding (%5d) : [%s]", len(input), input)
+
+	b64, b64Err := base64.StdEncoding.DecodeString(input)
+	if b64Err != nil {
+		c.warn("decode: base64 read error: %s", b64Err.Error())
+		return input
+	}
+
+	gzDec, gzErr := gzip.NewReader(bytes.NewReader([]byte(b64)))
+	if gzErr != nil {
+		c.warn("decode: gzip init error: %s", gzErr.Error())
+		return input
+	}
+
+	dec, decErr := ioutil.ReadAll(gzDec)
+	if decErr != nil {
+		c.warn("decode: gzip read error: %s", decErr.Error())
+		return input
+	}
+
+	//c.info("decoded (%5d) : [%s]", len(dec), dec)
+
+	c.info("decode: decompressed input from %d bytes to %d bytes", len(input), len(dec))
+
+	return string(dec)
 }
