@@ -34,7 +34,9 @@ type configData struct {
 	storageDir            configStringItem
 	archiveDir            configStringItem
 	lambdaAttempts        configStringItem
+	lambdaQueues          configStringItem
 	concurrentUploads     configStringItem
+	disableUploads        configBoolItem
 	iiifURLTemplate       configStringItem
 	tsAPIHost             configStringItem
 	tsAPIKey              configStringItem
@@ -65,7 +67,9 @@ func init() {
 	config.storageDir = configStringItem{value: "", configItem: configItem{flag: "t", env: "OCRWS_OCR_STORAGE_DIR", desc: "ocr storage directory"}}
 	config.archiveDir = configStringItem{value: "", configItem: configItem{flag: "a", env: "OCRWS_OCR_ARCHIVE_DIR", desc: "ocr archive directory"}}
 	config.lambdaAttempts = configStringItem{value: "", configItem: configItem{flag: "e", env: "OCRWS_LAMBDA_ATTEMPTS", desc: "max lambda attempts"}}
+	config.lambdaQueues = configStringItem{value: "", configItem: configItem{flag: "q", env: "OCRWS_LAMBDA_QUEUES", desc: "concurrent lambda queues (1 <= # <= 999)"}}
 	config.concurrentUploads = configStringItem{value: "", configItem: configItem{flag: "o", env: "OCRWS_CONCURRENT_UPLOADS", desc: "concurrent uploads (0 => # cpu cores)"}}
+	config.disableUploads = configBoolItem{value: false, configItem: configItem{flag: "u", env: "OCRWS_DISABLE_UPLOADS", desc: "disable uploads (for workflow development)"}}
 	config.iiifURLTemplate = configStringItem{value: "", configItem: configItem{flag: "i", env: "OCRWS_IIIF_URL_TEMPLATE", desc: "iiif url template"}}
 	config.tsAPIHost = configStringItem{value: "", configItem: configItem{flag: "h", env: "OCRWS_TRACKSYS_API_HOST", desc: "tracksys host"}}
 	config.tsAPIKey = configStringItem{value: "", configItem: configItem{flag: "k", env: "OCRWS_TRACKSYS_API_KEY", desc: "tracksys write key"}}
@@ -135,7 +139,9 @@ func getConfigValues() {
 	flagStringVar(&config.storageDir)
 	flagStringVar(&config.archiveDir)
 	flagStringVar(&config.lambdaAttempts)
+	flagStringVar(&config.lambdaQueues)
 	flagStringVar(&config.concurrentUploads)
+	flagBoolVar(&config.disableUploads)
 	flagStringVar(&config.iiifURLTemplate)
 	flagStringVar(&config.tsAPIHost)
 	flagStringVar(&config.tsAPIKey)
@@ -167,6 +173,7 @@ func getConfigValues() {
 	configOK = ensureConfigStringSet(&config.storageDir) && configOK
 	configOK = ensureConfigStringSet(&config.archiveDir) && configOK
 	configOK = ensureConfigStringSet(&config.lambdaAttempts) && configOK
+	configOK = ensureConfigStringSet(&config.lambdaQueues) && configOK
 	configOK = ensureConfigStringSet(&config.concurrentUploads) && configOK
 	configOK = ensureConfigStringSet(&config.iiifURLTemplate) && configOK
 	configOK = ensureConfigStringSet(&config.tsAPIHost) && configOK
@@ -199,7 +206,9 @@ func getConfigValues() {
 	log.Printf("[CONFIG] storageDir            = [%s]", config.storageDir.value)
 	log.Printf("[CONFIG] archiveDir            = [%s]", config.archiveDir.value)
 	log.Printf("[CONFIG] lambdaAttempts        = [%s]", config.lambdaAttempts.value)
+	log.Printf("[CONFIG] lambdaQueues          = [%s]", config.lambdaQueues.value)
 	log.Printf("[CONFIG] concurrentUploads     = [%s]", config.concurrentUploads.value)
+	log.Printf("[CONFIG] disableUploads        = [%v]", config.disableUploads.value)
 	log.Printf("[CONFIG] iiifURLTemplate       = [%s]", config.iiifURLTemplate.value)
 	log.Printf("[CONFIG] tsAPIHost             = [%s]", config.tsAPIHost.value)
 	log.Printf("[CONFIG] tsAPIKey              = [%s]", maskValue(config.tsAPIKey.value))

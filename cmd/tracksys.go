@@ -225,13 +225,6 @@ func textSnippet(text string) string {
 }
 
 func (c *clientContext) tsPostText(pid, text string) error {
-	// if url not set, just skip over this
-
-	if config.tsReadOnly.value == true {
-		c.info("SKIPPING TRACKSYS POST")
-		return nil
-	}
-
 	form := url.Values{
 		"text": {text},
 		"key":  {config.tsAPIKey.value},

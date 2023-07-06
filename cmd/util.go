@@ -219,6 +219,10 @@ University of Virginia Library`, message, config.emailAddress.value)
 func (c *clientContext) processOcrSuccess(res ocrResultsInfo) {
 	c.info("[%s] processing and posting successful OCR", res.pid)
 
+	if config.tsReadOnly.value == true {
+		c.info("[%s] SKIPPING TRACKSYS POST", res.pid)
+	}
+
 	c.reqUpdateFinished(res.workDir, res.reqid)
 
 	var pages []string
@@ -226,7 +230,8 @@ func (c *clientContext) processOcrSuccess(res ocrResultsInfo) {
 		pages = append(pages, p.text)
 
 		// post to tracksys?
-		if res.overwrite == true {
+
+		if config.tsReadOnly.value == false && res.overwrite == true {
 			if err := c.tsPostText(p.pid, p.text); err != nil {
 				c.err("[%s] Tracksys OCR posting failed: [%s]", res.pid, err.Error())
 			}
