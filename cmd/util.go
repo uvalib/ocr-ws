@@ -244,6 +244,8 @@ func (c *clientContext) processOcrSuccess(res ocrResultsInfo) {
 		ocrBaseName = req.CallNumber
 	}
 
+	ocrBaseName = strings.ReplaceAll(ocrBaseName, "/", "∕")
+
 	ocrText := ocrFormatDocument(pages)
 	ocrFile := fmt.Sprintf("%s/%s.txt", res.workDir, ocrBaseName)
 
