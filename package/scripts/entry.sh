@@ -1,4 +1,7 @@
+#!/usr/bin/env bash
+#
 # run application
+#
 
 secs="30"
 
