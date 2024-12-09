@@ -1,7 +1,7 @@
 #
 # build the target application
 #
-FROM public.ecr.aws/docker/library/golang:1.22.3-alpine3.20 as builder
+FROM public.ecr.aws/docker/library/golang:1.23.4-alpine3.21 AS builder
 
 # update the packages
 RUN apk update && apk upgrade && apk add make gcc g++
@@ -15,7 +15,7 @@ RUN make rebuild-docker GIT_COMMIT="$GIT_COMMIT"
 #
 # build the target container
 #
-FROM public.ecr.aws/docker/library/alpine:3.20
+FROM public.ecr.aws/docker/library/alpine:3.21
 
 # update the packages
 RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl && rm -rf /var/cache/apk/*
@@ -28,7 +28,7 @@ ENV TZ=America/New_York
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Specify home 
-ENV APP_HOME /ocr-ws
+ENV APP_HOME=/ocr-ws
 WORKDIR $APP_HOME
 
 # Create necessary directories
@@ -38,7 +38,7 @@ RUN chmod -R 775 $APP_HOME
 
 # port and run command
 EXPOSE 8088
-CMD scripts/entry.sh
+ENTRYPOINT ["scripts/entry.sh"]
 
 # Move in necessary assets
 COPY package/scripts/entry.sh $APP_HOME/scripts/entry.sh
