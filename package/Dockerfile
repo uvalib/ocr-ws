@@ -38,7 +38,7 @@ RUN chmod -R 775 $APP_HOME
 
 # port and run command
 EXPOSE 8088
-ENTRYPOINT ["scripts/entry.sh"]
+CMD ["scripts/entry.sh"]
 
 # Move in necessary assets
 COPY package/scripts/entry.sh $APP_HOME/scripts/entry.sh
