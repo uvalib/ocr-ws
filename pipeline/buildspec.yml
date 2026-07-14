@@ -17,7 +17,7 @@ phases:
   pre_build:
     commands:
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $CONTAINER_REGISTRY
-      - git clone https://$GITLAB_USER:$GITLAB_TOKEN@gitlab.com/uvalib/build-deploy-scripts.git
+      #- git clone https://$GITHUB_USER:$GITHUB_TOKEN@github.com/uvalib/build-deploy-scripts.git
       - BUILD_VERSION=$(date --date="@$(echo $CODEBUILD_START_TIME | cut -c1-10)" +"%Y%m%d%H%M%S")
 
   build:
